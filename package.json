@@ -1,0 +1,13 @@
+{
+  "name": "burnchat",
+  "version": "1.0.0",
+  "private": true,
+  "description": "BurnChat — The VPN for AI. Privacy proxy for AI chat.",
+  "scripts": {
+    "dev:web": "cd apps/web && npm run dev",
+    "dev:api": "cd apps/api && uvicorn main:app --reload --port 8000",
+    "dev": "concurrently \"npm run dev:web\" \"npm run dev:api\"",
+    "build:web": "cd apps/web && npm run build",
+    "lint": "cd apps/web && npm run lint"
+  }
+}
