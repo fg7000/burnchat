@@ -30,7 +30,7 @@ export async function parsePDF(
     const page = await pdf.getPage(i);
     const textContent = await page.getTextContent();
     const text = textContent.items
-      .map((item: { str?: string }) => (item.str ? item.str : ""))
+      .map((item) => ("str" in item && item.str ? item.str : ""))
       .join(" ");
     pages.push(text);
 
