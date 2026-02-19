@@ -6,16 +6,11 @@ const nextConfig = {
     config.resolve.alias.canvas = false;
     return config;
   },
-  async headers() {
+  async rewrites() {
     return [
       {
-        source: "/(.*)",
-        headers: [
-          {
-            key: "Cache-Control",
-            value: "no-store, no-cache, must-revalidate, proxy-revalidate",
-          },
-        ],
+        source: "/api/:path*",
+        destination: "http://localhost:8000/api/:path*",
       },
     ];
   },
