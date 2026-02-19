@@ -119,10 +119,8 @@ export default function ChatInput() {
         options.sessionId = sessionId;
       }
 
-      // Call streaming chat
-      const url =
-        (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000") +
-        "/api/chat";
+      // Call streaming chat via Next.js proxy
+      const url = "/api/chat";
       const body = JSON.stringify({
         model: selectedModel,
         messages: chatHistory,
