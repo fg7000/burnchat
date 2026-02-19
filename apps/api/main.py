@@ -21,6 +21,7 @@ app = FastAPI(title="BurnChat API", version="1.0.0", lifespan=lifespan)
 
 origins = [
     "http://localhost:3000",
+    "http://localhost:3001",
     "https://burnchat.ai",
     "https://www.burnchat.ai",
 ]
