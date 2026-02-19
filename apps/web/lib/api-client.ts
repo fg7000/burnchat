@@ -48,7 +48,7 @@ class ApiClient {
     }
 
     let allAnonymized = "";
-    let allMapping: { original: string; replacement: string; entity_type: string }[] = [];
+    const allMapping: { original: string; replacement: string; entity_type: string }[] = [];
     const entityCounts: Record<string, number> = {};
 
     for (let i = 0; i < chunks.length; i++) {
