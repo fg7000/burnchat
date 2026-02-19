@@ -71,7 +71,7 @@ export default function CreditPurchaseModal() {
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Coins className="h-5 w-5 text-teal-400" />
+            <Coins className="h-5 w-5 text-gray-300" />
             Buy Credits
           </DialogTitle>
         </DialogHeader>
@@ -96,7 +96,7 @@ export default function CreditPurchaseModal() {
                   className={cn(
                     "flex w-full items-center justify-between rounded-lg border px-4 py-3 text-left transition-colors",
                     selectedPackage === pkg.id
-                      ? "border-teal-500 bg-teal-950/30"
+                      ? "border-white bg-gray-800"
                       : "border-gray-700 bg-gray-800/30 hover:border-gray-600"
                   )}
                 >
@@ -106,12 +106,12 @@ export default function CreditPurchaseModal() {
                       className={cn(
                         "flex h-4 w-4 items-center justify-center rounded-full border-2",
                         selectedPackage === pkg.id
-                          ? "border-teal-500"
+                          ? "border-white"
                           : "border-gray-600"
                       )}
                     >
                       {selectedPackage === pkg.id && (
-                        <div className="h-2 w-2 rounded-full bg-teal-500" />
+                        <div className="h-2 w-2 rounded-full bg-white" />
                       )}
                     </div>
                     <div>
@@ -120,14 +120,7 @@ export default function CreditPurchaseModal() {
                           {pkg.name}
                         </span>
                         {pkg.badge && (
-                          <span
-                            className={cn(
-                              "rounded px-1.5 py-0.5 text-[10px] font-semibold",
-                              pkg.badge === "Popular"
-                                ? "bg-teal-900/50 text-teal-400"
-                                : "bg-amber-900/50 text-amber-400"
-                            )}
-                          >
+                          <span className="rounded bg-gray-700 px-1.5 py-0.5 text-[10px] font-semibold text-gray-300">
                             {pkg.badge}
                           </span>
                         )}
@@ -146,7 +139,7 @@ export default function CreditPurchaseModal() {
 
             {/* Error message */}
             {error && (
-              <p className="text-sm text-red-400">{error}</p>
+              <p className="text-sm text-gray-400">{error}</p>
             )}
 
             {/* Purchase button */}

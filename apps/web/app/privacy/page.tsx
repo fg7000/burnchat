@@ -10,7 +10,7 @@ export default function PrivacyPage() {
     <div className="min-h-screen bg-gray-950 px-4 py-12">
       <div className="mx-auto max-w-3xl">
         <div className="mb-8">
-          <a href="/" className="text-teal-400 hover:text-teal-300">
+          <a href="/" className="text-gray-300 hover:text-white">
             &larr; Back to BurnChat
           </a>
         </div>

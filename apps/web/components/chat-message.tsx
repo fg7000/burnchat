@@ -16,9 +16,9 @@ interface ChatMessageProps {
 function StreamingDots() {
   return (
     <span className="inline-flex items-center gap-0.5">
-      <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-teal-400 [animation-delay:-0.3s]" />
-      <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-teal-400 [animation-delay:-0.15s]" />
-      <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-teal-400" />
+      <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-gray-400 [animation-delay:-0.3s]" />
+      <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-gray-400 [animation-delay:-0.15s]" />
+      <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-gray-400" />
     </span>
   );
 }
@@ -47,7 +47,7 @@ export function ChatMessage({ message, mapping, showRealNames: initialShowReal }
         className={cn(
           "max-w-[80%] rounded-lg px-4 py-3",
           isUser
-            ? "bg-teal-600/20 border border-teal-600/30"
+            ? "bg-gray-800 border border-gray-600"
             : "bg-gray-800"
         )}
       >
@@ -56,7 +56,7 @@ export function ChatMessage({ message, mapping, showRealNames: initialShowReal }
           <span
             className={cn(
               "text-xs font-medium",
-              isUser ? "text-teal-400" : "text-gray-400"
+              isUser ? "text-gray-200" : "text-gray-400"
             )}
           >
             {isUser ? "You" : "Assistant"}
@@ -85,7 +85,7 @@ export function ChatMessage({ message, mapping, showRealNames: initialShowReal }
                 className={cn(
                   "h-6 gap-1 px-2 text-xs",
                   localShowReal
-                    ? "text-teal-400 hover:text-teal-300"
+                    ? "text-white hover:text-gray-200"
                     : "text-gray-500 hover:text-gray-300"
                 )}
               >

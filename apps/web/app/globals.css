@@ -63,7 +63,7 @@ textarea {
 .streaming-cursor::after {
   content: "▊";
   animation: blink 1s steps(2) infinite;
-  color: #14b8a6;
+  color: #e5e7eb;
 }
 
 @keyframes blink {

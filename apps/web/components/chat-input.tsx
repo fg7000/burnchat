@@ -228,7 +228,7 @@ export default function ChatInput() {
               className={cn(
                 "w-full resize-none rounded-xl bg-gray-800 border border-gray-700 px-4 py-2.5",
                 "text-gray-100 placeholder:text-gray-500 text-sm",
-                "focus:outline-none focus:ring-1 focus:ring-teal-500 focus:border-teal-500",
+                "focus:outline-none focus:ring-1 focus:ring-gray-500 focus:border-gray-500",
                 "disabled:opacity-50 disabled:cursor-not-allowed",
                 "scrollbar-thin scrollbar-thumb-gray-700"
               )}
@@ -260,7 +260,7 @@ export default function ChatInput() {
             className={cn(
               "shrink-0 h-10 w-10 rounded-full transition-colors",
               hasText && !isStreaming
-                ? "bg-teal-600 text-white hover:bg-teal-700"
+                ? "bg-white text-black hover:bg-gray-200"
                 : "bg-gray-700 text-gray-500"
             )}
             onClick={handleSend}

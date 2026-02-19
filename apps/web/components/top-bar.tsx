@@ -34,8 +34,8 @@ export default function TopBar() {
       <div className="flex h-full items-center justify-between px-4">
         {/* Left: Logo */}
         <div className="flex items-center gap-2">
-          <Shield className="h-6 w-6 text-teal-500" />
-          <span className="text-lg font-semibold text-teal-500">BurnChat</span>
+          <Shield className="h-6 w-6 text-white" />
+          <span className="text-lg font-semibold text-white">BurnChat</span>
         </div>
 
         {/* Right: Model Selector + Credits + User */}
@@ -72,7 +72,7 @@ export default function TopBar() {
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                   onClick={handleSignOut}
-                  className="text-red-400 focus:text-red-300"
+                  className="text-gray-400 focus:text-gray-300"
                 >
                   Sign Out
                 </DropdownMenuItem>

@@ -515,7 +515,7 @@ export default function AttachmentMenu() {
             value={inlineValue}
             onChange={(e) => setInlineValue(e.target.value)}
             placeholder="https://example.com/article"
-            className="w-full bg-gray-900 border border-gray-600 rounded-md px-3 py-2 text-sm text-gray-200 placeholder:text-gray-500 focus:outline-none focus:ring-1 focus:ring-teal-500"
+            className="w-full bg-gray-900 border border-gray-600 rounded-md px-3 py-2 text-sm text-gray-200 placeholder:text-gray-500 focus:outline-none focus:ring-1 focus:ring-gray-500"
             autoFocus
             onKeyDown={(e) => {
               if (e.key === "Enter") handleUrlSubmit();
@@ -554,7 +554,7 @@ export default function AttachmentMenu() {
             value={inlineValue}
             onChange={(e) => setInlineValue(e.target.value)}
             placeholder="https://drive.google.com/drive/folders/..."
-            className="w-full bg-gray-900 border border-gray-600 rounded-md px-3 py-2 text-sm text-gray-200 placeholder:text-gray-500 focus:outline-none focus:ring-1 focus:ring-teal-500"
+            className="w-full bg-gray-900 border border-gray-600 rounded-md px-3 py-2 text-sm text-gray-200 placeholder:text-gray-500 focus:outline-none focus:ring-1 focus:ring-gray-500"
             autoFocus
             onKeyDown={(e) => {
               if (e.key === "Enter") handleGDriveSubmit();
@@ -591,7 +591,7 @@ export default function AttachmentMenu() {
             onChange={(e) => setInlineValue(e.target.value)}
             placeholder="Paste your text here..."
             rows={4}
-            className="w-full bg-gray-900 border border-gray-600 rounded-md px-3 py-2 text-sm text-gray-200 placeholder:text-gray-500 focus:outline-none focus:ring-1 focus:ring-teal-500 resize-none"
+            className="w-full bg-gray-900 border border-gray-600 rounded-md px-3 py-2 text-sm text-gray-200 placeholder:text-gray-500 focus:outline-none focus:ring-1 focus:ring-gray-500 resize-none"
             autoFocus
           />
           <Button

@@ -21,14 +21,14 @@ export default function CreditDisplay() {
       className={cn(
         "flex items-center gap-1.5 rounded-md px-2.5 py-1 text-sm transition-colors",
         isLow
-          ? "text-orange-400 hover:text-orange-300"
-          : "text-gray-300 hover:text-teal-400"
+          ? "text-gray-500 hover:text-gray-300"
+          : "text-gray-300 hover:text-white"
       )}
     >
       <Coins
         className={cn(
           "h-4 w-4",
-          isLow ? "text-orange-400" : "text-teal-400"
+          isLow ? "text-gray-500" : "text-gray-300"
         )}
       />
       <span className="font-medium tabular-nums">

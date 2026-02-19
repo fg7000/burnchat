@@ -126,13 +126,13 @@ export default function SessionSidebar() {
                 onChange={(e) => setEditName(e.target.value)}
                 onBlur={handleNameSubmit}
                 onKeyDown={handleNameKeyDown}
-                className="w-full rounded border border-gray-600 bg-gray-800 px-2 py-1 text-sm text-gray-100 outline-none focus:border-teal-500"
+                className="w-full rounded border border-gray-600 bg-gray-800 px-2 py-1 text-sm text-gray-100 outline-none focus:border-gray-400"
                 maxLength={100}
               />
             ) : (
               <button
                 onClick={() => setIsEditingName(true)}
-                className="block w-full truncate text-left text-sm font-medium text-gray-200 hover:text-teal-400 transition-colors"
+                className="block w-full truncate text-left text-sm font-medium text-gray-200 hover:text-white transition-colors"
                 title="Click to edit session name"
               >
                 {sessionName}
@@ -205,7 +205,7 @@ export default function SessionSidebar() {
                 <div className="shrink-0">
                   {doc.status === "ready" && (
                     <div className="flex items-center gap-1">
-                      <Check className="h-3.5 w-3.5 text-green-500" />
+                      <Check className="h-3.5 w-3.5 text-white" />
                       <span className="text-[11px] text-gray-500">
                         {doc.chunkCount || 0} chunks
                       </span>
@@ -215,14 +215,14 @@ export default function SessionSidebar() {
                     doc.status === "anonymizing" ||
                     doc.status === "embedding") && (
                     <div className="flex items-center gap-1">
-                      <Loader2 className="h-3.5 w-3.5 animate-spin text-teal-400" />
+                      <Loader2 className="h-3.5 w-3.5 animate-spin text-gray-300" />
                       <span className="text-[11px] text-gray-500 capitalize">
                         {doc.status}
                       </span>
                     </div>
                   )}
                   {doc.status === "error" && (
-                    <XCircle className="h-3.5 w-3.5 text-red-500" />
+                    <XCircle className="h-3.5 w-3.5 text-gray-400" />
                   )}
                 </div>
               </div>

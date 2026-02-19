@@ -123,7 +123,7 @@ export default function SessionListModal() {
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <FolderOpen className="h-5 w-5 text-teal-400" />
+            <FolderOpen className="h-5 w-5 text-gray-300" />
             Your Sessions
           </DialogTitle>
         </DialogHeader>
@@ -132,14 +132,14 @@ export default function SessionListModal() {
           {/* Loading state */}
           {isLoading && (
             <div className="flex items-center justify-center py-12">
-              <Loader2 className="h-6 w-6 animate-spin text-teal-400" />
+              <Loader2 className="h-6 w-6 animate-spin text-gray-300" />
             </div>
           )}
 
           {/* Error state */}
           {error && !isLoading && (
             <div className="flex flex-col items-center gap-3 py-12">
-              <p className="text-sm text-red-400">{error}</p>
+              <p className="text-sm text-gray-400">{error}</p>
               <Button variant="secondary" size="sm" onClick={fetchSessions}>
                 Retry
               </Button>
@@ -175,7 +175,7 @@ export default function SessionListModal() {
                         disabled={resumingId === session.id}
                         className="flex-1 text-left min-w-0"
                       >
-                        <p className="truncate text-sm font-medium text-gray-200 group-hover:text-teal-400 transition-colors">
+                        <p className="truncate text-sm font-medium text-gray-200 group-hover:text-gray-300 transition-colors">
                           {session.name}
                         </p>
                         <div className="mt-1 flex items-center gap-3 text-xs text-gray-500">
@@ -194,7 +194,7 @@ export default function SessionListModal() {
                       {/* Actions */}
                       <div className="flex items-center gap-1 shrink-0">
                         {resumingId === session.id && (
-                          <Loader2 className="h-4 w-4 animate-spin text-teal-400" />
+                          <Loader2 className="h-4 w-4 animate-spin text-gray-300" />
                         )}
 
                         {confirmDeleteId === session.id ? (
@@ -224,7 +224,7 @@ export default function SessionListModal() {
                         ) : (
                           <button
                             onClick={() => setConfirmDeleteId(session.id)}
-                            className="rounded p-1.5 text-gray-500 opacity-0 transition-all hover:bg-gray-700 hover:text-red-400 group-hover:opacity-100"
+                            className="rounded p-1.5 text-gray-500 opacity-0 transition-all hover:bg-gray-700 hover:text-gray-400 group-hover:opacity-100"
                             title="Delete session"
                           >
                             <Trash2 className="h-3.5 w-3.5" />

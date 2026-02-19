@@ -94,7 +94,7 @@ export default function ModelSelector() {
           size="sm"
           className="h-8 gap-1.5 px-2.5 text-sm text-gray-300 hover:text-gray-100"
         >
-          <Sparkles className="h-3.5 w-3.5 text-teal-400" />
+          <Sparkles className="h-3.5 w-3.5 text-gray-400" />
           <span className="max-w-[140px] truncate">{selectedModelName}</span>
           <ChevronDown className="h-3.5 w-3.5 text-gray-500" />
         </Button>
@@ -105,10 +105,10 @@ export default function ModelSelector() {
           onClick={() => setSelectedModel(null)}
           className={cn(
             "flex items-center gap-2 py-2",
-            !selectedModel && "bg-gray-800 text-teal-400"
+            !selectedModel && "bg-gray-800 text-white"
           )}
         >
-          <Star className="h-4 w-4 text-yellow-500" />
+          <Star className="h-4 w-4 text-gray-400" />
           <div className="flex flex-1 items-center justify-between">
             <span className="font-medium">Auto (Recommended)</span>
           </div>
@@ -123,14 +123,14 @@ export default function ModelSelector() {
             onClick={() => setSelectedModel(model.id)}
             className={cn(
               "flex items-center gap-2 py-2",
-              selectedModel === model.id && "bg-gray-800 text-teal-400"
+              selectedModel === model.id && "bg-gray-800 text-white"
             )}
           >
             <div className="flex flex-1 items-center justify-between">
               <div className="flex items-center gap-2">
                 <span className="text-sm">{model.name}</span>
                 {hasDocuments && recommendedModel === model.id && (
-                  <span className="rounded bg-teal-900/50 px-1.5 py-0.5 text-[10px] font-medium text-teal-400">
+                  <span className="rounded bg-gray-700 px-1.5 py-0.5 text-[10px] font-medium text-gray-200">
                     Recommended
                   </span>
                 )}

@@ -41,7 +41,7 @@ export default function AuthCallback() {
           <p className="mb-4 text-gray-400">{error}</p>
           <button
             onClick={() => router.push("/")}
-            className="rounded-md bg-teal-600 px-4 py-2 text-white hover:bg-teal-700"
+            className="rounded-md bg-white px-4 py-2 text-black hover:bg-gray-200"
           >
             Back to BurnChat
           </button>
@@ -53,7 +53,7 @@ export default function AuthCallback() {
   return (
     <div className="flex h-screen items-center justify-center bg-gray-950">
       <div className="text-center">
-        <div className="mb-4 inline-block h-8 w-8 animate-spin rounded-full border-2 border-teal-500 border-t-transparent"></div>
+        <div className="mb-4 inline-block h-8 w-8 animate-spin rounded-full border-2 border-gray-300 border-t-transparent"></div>
         <p className="text-gray-400">Signing you in...</p>
       </div>
     </div>

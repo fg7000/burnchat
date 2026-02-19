@@ -25,27 +25,27 @@ const statusConfig: Record<
   parsing: {
     label: "Parsing document...",
     icon: <Loader2 className="h-3.5 w-3.5 animate-spin" />,
-    color: "text-yellow-400",
+    color: "text-gray-400",
   },
   anonymizing: {
     label: "Anonymizing content...",
     icon: <Loader2 className="h-3.5 w-3.5 animate-spin" />,
-    color: "text-teal-400",
+    color: "text-gray-300",
   },
   embedding: {
     label: "Creating embeddings...",
     icon: <Loader2 className="h-3.5 w-3.5 animate-spin" />,
-    color: "text-blue-400",
+    color: "text-gray-300",
   },
   ready: {
     label: "Ready",
     icon: <CheckCircle2 className="h-3.5 w-3.5" />,
-    color: "text-green-400",
+    color: "text-white",
   },
   error: {
     label: "Error",
     icon: <AlertCircle className="h-3.5 w-3.5" />,
-    color: "text-red-400",
+    color: "text-gray-400",
   },
 };
 
@@ -84,9 +84,9 @@ export function DocumentCard({ document }: DocumentCardProps) {
               <div
                 className={cn(
                   "h-full rounded-full transition-all duration-300 ease-out",
-                  document.status === "parsing" && "bg-yellow-400",
-                  document.status === "anonymizing" && "bg-teal-400",
-                  document.status === "embedding" && "bg-blue-400"
+                  document.status === "parsing" && "bg-gray-400",
+                  document.status === "anonymizing" && "bg-gray-300",
+                  document.status === "embedding" && "bg-white"
                 )}
                 style={{ width: `${Math.min(document.progress, 100)}%` }}
               />
@@ -101,7 +101,7 @@ export function DocumentCard({ document }: DocumentCardProps) {
       {/* Entity summary */}
       {document.entitiesFound.length > 0 && (
         <div className="mt-2 flex flex-wrap gap-1.5">
-          <div className="flex items-center gap-1 rounded bg-teal-600/20 px-2 py-0.5 text-xs text-teal-300">
+          <div className="flex items-center gap-1 rounded bg-gray-700 px-2 py-0.5 text-xs text-gray-200">
             <Shield className="h-3 w-3" />
             {totalEntities} entities found
           </div>
