@@ -1,11 +1,12 @@
 import os
 import re
+from pathlib import Path
 from typing import Optional
 
 import httpx
 from dotenv import load_dotenv
 
-load_dotenv()
+load_dotenv(Path(__file__).resolve().parent.parent.parent / ".env")
 
 GDRIVE_API_KEY = os.getenv("GOOGLE_API_KEY", "")
 GDRIVE_FILES_URL = "https://www.googleapis.com/drive/v3/files"

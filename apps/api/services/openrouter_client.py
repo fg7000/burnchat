@@ -7,12 +7,13 @@ redundant network calls.
 
 import os
 import time
+from pathlib import Path
 from typing import AsyncGenerator
 
 import httpx
 from dotenv import load_dotenv
 
-load_dotenv()
+load_dotenv(Path(__file__).resolve().parent.parent / ".env")
 
 BASE_URL = "https://openrouter.ai/api/v1"
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "")
