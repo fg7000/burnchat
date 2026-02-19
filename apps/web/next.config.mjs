@@ -1,10 +1,21 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  output: "standalone",
+  basePath: "/app",
   webpack: (config) => {
     // Handle pdf.js worker
     config.resolve.alias.canvas = false;
     return config;
+  },
+  // Redirect / to /app since basePath won't handle bare root
+  async redirects() {
+    return [
+      {
+        source: "/",
+        destination: "/app",
+        basePath: false,
+        permanent: false,
+      },
+    ];
   },
   // Disable caching for all assets in dev to prevent stale JS through tunnels
   async headers() {

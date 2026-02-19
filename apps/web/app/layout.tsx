@@ -35,16 +35,16 @@ export default function RootLayout({
             var oldFetch = window.fetch;
             window.fetch = function(input, init) {
               if (typeof input === 'string' && input.indexOf('http://localhost:8000') === 0) {
-                input = input.replace('http://localhost:8000', '');
+                input = input.replace('http://localhost:8000', '/app');
               } else if (input instanceof Request && input.url.indexOf('http://localhost:8000') === 0) {
-                input = new Request(input.url.replace('http://localhost:8000', ''), input);
+                input = new Request(input.url.replace('http://localhost:8000', '/app'), input);
               }
               return oldFetch.call(this, input, init);
             };
             var oldOpen = XMLHttpRequest.prototype.open;
             XMLHttpRequest.prototype.open = function(method, url) {
               if (typeof url === 'string' && url.indexOf('http://localhost:8000') === 0) {
-                arguments[1] = url.replace('http://localhost:8000', '');
+                arguments[1] = url.replace('http://localhost:8000', '/app');
               }
               return oldOpen.apply(this, arguments);
             };
