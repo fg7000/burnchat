@@ -8,12 +8,12 @@ export async function parsePDF(
 ): Promise<string> {
   const pdfjsLib = await import("pdfjs-dist");
 
-  // Use jsdelivr which always mirrors every npm version exactly
+  // pdfjs-dist v4.x worker
   pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdn.jsdelivr.net/npm/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
 
   const arrayBuffer = await file.arrayBuffer();
 
-  const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
+  const loadingTask = pdfjsLib.getDocument({ data: new Uint8Array(arrayBuffer) });
 
   const pdf = await Promise.race([
     loadingTask.promise,
@@ -30,7 +30,7 @@ export async function parsePDF(
     const page = await pdf.getPage(i);
     const textContent = await page.getTextContent();
     const text = textContent.items
-      .map((item) => ("str" in item ? item.str : ""))
+      .map((item: { str?: string }) => (item.str ? item.str : ""))
       .join(" ");
     pages.push(text);
 
