@@ -1,4 +1,5 @@
 import os
+from typing import Dict, Optional
 
 import stripe
 
@@ -14,7 +15,7 @@ PACKAGES = {
 }
 
 # Cached mapping of package_id -> stripe_price_id
-_price_cache: dict[str, str] | None = None
+_price_cache: Optional[Dict[str, str]] = None
 
 
 def ensure_stripe_products() -> dict[str, str]:
