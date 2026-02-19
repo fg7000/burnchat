@@ -7,7 +7,7 @@ import { apiClient } from "@/lib/api-client";
 import { cn } from "@/lib/utils";
 import { FileText, Link, Folder, FileEdit, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { parsePDF } from "@/lib/parsers/pdf-parser";
+import { parsePDF, type ProgressCallback } from "@/lib/parsers/pdf-parser";
 import { parseDOCX } from "@/lib/parsers/docx-parser";
 import { parseImage } from "@/lib/parsers/ocr-parser";
 
@@ -55,10 +55,13 @@ export default function AttachmentMenu() {
   }, [setShowAttachmentMenu]);
 
   // Parse a single file based on its type
-  const parseFile = async (file: File): Promise<string> => {
+  const parseFile = async (
+    file: File,
+    onProgress?: ProgressCallback
+  ): Promise<string> => {
     const name = file.name.toLowerCase();
     if (name.endsWith(".pdf")) {
-      return parsePDF(file);
+      return parsePDF(file, onProgress);
     } else if (name.endsWith(".docx")) {
       return parseDOCX(file);
     } else if (
@@ -80,9 +83,10 @@ export default function AttachmentMenu() {
     setIsProcessing(true);
     closeMenu();
 
-    try {
-      const fileArray = Array.from(files);
+    const fileArray = Array.from(files);
+    const filenames = fileArray.map((f) => f.name);
 
+    try {
       if (fileArray.length === 1) {
         // Single file path
         const file = fileArray[0];
@@ -97,6 +101,8 @@ export default function AttachmentMenu() {
           entitiesFound: [],
           tokenCount: 0,
           status: "parsing",
+          progress: 0,
+          progressDetail: "Starting...",
         });
 
         // Add system message for document card
@@ -106,9 +112,18 @@ export default function AttachmentMenu() {
           content: `[document:${filename}]`,
         });
 
-        const text = await parseFile(file);
+        const text = await parseFile(file, (pct, detail) => {
+          updateDocumentStatus(filename, "parsing", {
+            progress: Math.round(pct * 0.5), // parsing = 0-50%
+            progressDetail: detail,
+          });
+        });
 
-        updateDocumentStatus(filename, "anonymizing", { text });
+        updateDocumentStatus(filename, "anonymizing", {
+          text,
+          progress: 50,
+          progressDetail: "Anonymizing...",
+        });
 
         if (text.length < 100_000) {
           // Quick Mode: single file under 100K chars
@@ -120,12 +135,16 @@ export default function AttachmentMenu() {
             mapping: result.mapping,
             entitiesFound: result.entities_found ?? [],
             tokenCount: result.token_count ?? 0,
+            progress: 100,
           });
           setCurrentMapping(result.mapping);
         } else {
           // Session Mode: large file
           setSessionMode("session");
-          updateDocumentStatus(filename, "embedding");
+          updateDocumentStatus(filename, "embedding", {
+            progress: 60,
+            progressDetail: "Creating embeddings...",
+          });
 
           const result = await apiClient.processDocuments(
             [{ filename, text }],
@@ -143,6 +162,7 @@ export default function AttachmentMenu() {
             entitiesFound: result.entities_found ?? [],
             tokenCount: result.token_count ?? 0,
             chunkCount: result.chunk_count ?? 0,
+            progress: 100,
           });
           if (result.mapping) {
             setCurrentMapping(result.mapping);
@@ -153,8 +173,10 @@ export default function AttachmentMenu() {
         setSessionMode("session");
 
         const parsedDocs: { filename: string; text: string }[] = [];
+        const totalFiles = fileArray.length;
 
-        for (const file of fileArray) {
+        for (let idx = 0; idx < fileArray.length; idx++) {
+          const file = fileArray[idx];
           const filename = file.name;
 
           addDocument({
@@ -165,6 +187,8 @@ export default function AttachmentMenu() {
             entitiesFound: [],
             tokenCount: 0,
             status: "parsing",
+            progress: 0,
+            progressDetail: `File ${idx + 1} of ${totalFiles}`,
           });
 
           addMessage({
@@ -173,14 +197,28 @@ export default function AttachmentMenu() {
             content: `[document:${filename}]`,
           });
 
-          const text = await parseFile(file);
-          updateDocumentStatus(filename, "anonymizing", { text });
+          const text = await parseFile(file, (pct, detail) => {
+            updateDocumentStatus(filename, "parsing", {
+              progress: Math.round(pct * 0.5),
+              progressDetail: detail
+                ? `${detail} (file ${idx + 1}/${totalFiles})`
+                : `File ${idx + 1} of ${totalFiles}`,
+            });
+          });
+          updateDocumentStatus(filename, "anonymizing", {
+            text,
+            progress: 50,
+            progressDetail: `File ${idx + 1} of ${totalFiles}`,
+          });
           parsedDocs.push({ filename, text });
         }
 
         // Process all documents together
         for (const doc of parsedDocs) {
-          updateDocumentStatus(doc.filename, "embedding");
+          updateDocumentStatus(doc.filename, "embedding", {
+            progress: 60,
+            progressDetail: "Creating embeddings...",
+          });
         }
 
         const result = await apiClient.processDocuments(
@@ -197,6 +235,7 @@ export default function AttachmentMenu() {
           updateDocumentStatus(doc.filename, "ready", {
             tokenCount: result.token_count ?? 0,
             chunkCount: result.chunk_count ?? 0,
+            progress: 100,
           });
         }
 
@@ -206,6 +245,9 @@ export default function AttachmentMenu() {
       }
     } catch (error) {
       console.error("File processing error:", error);
+      for (const name of filenames) {
+        updateDocumentStatus(name, "error");
+      }
     } finally {
       setIsProcessing(false);
       // Reset file input
@@ -222,9 +264,9 @@ export default function AttachmentMenu() {
     setIsProcessing(true);
     closeMenu();
 
-    try {
-      const filename = new URL(url).hostname;
+    const filename = new URL(url).hostname;
 
+    try {
       addDocument({
         filename,
         text: "",
@@ -233,6 +275,8 @@ export default function AttachmentMenu() {
         entitiesFound: [],
         tokenCount: 0,
         status: "parsing",
+        progress: 0,
+        progressDetail: "Fetching URL...",
       });
 
       addMessage({
@@ -245,7 +289,11 @@ export default function AttachmentMenu() {
       const ingestResult = await apiClient.ingestUrl(url, token);
       const text = ingestResult.text ?? "";
 
-      updateDocumentStatus(filename, "anonymizing", { text });
+      updateDocumentStatus(filename, "anonymizing", {
+        text,
+        progress: 50,
+        progressDetail: "Anonymizing...",
+      });
 
       // Anonymize the result
       setSessionMode("quick");
@@ -256,10 +304,12 @@ export default function AttachmentMenu() {
         mapping: anonResult.mapping,
         entitiesFound: anonResult.entities_found ?? [],
         tokenCount: anonResult.token_count ?? 0,
+        progress: 100,
       });
       setCurrentMapping(anonResult.mapping);
     } catch (error) {
       console.error("URL ingestion error:", error);
+      updateDocumentStatus(filename, "error");
     } finally {
       setIsProcessing(false);
     }
@@ -272,27 +322,32 @@ export default function AttachmentMenu() {
     setIsProcessing(true);
     closeMenu();
 
-    try {
-      const filename = "Google Drive Folder";
+    const gdriveFilename = "Google Drive Folder";
 
+    try {
       addDocument({
-        filename,
+        filename: gdriveFilename,
         text: "",
         anonymizedText: "",
         mapping: [],
         entitiesFound: [],
         tokenCount: 0,
         status: "parsing",
+        progress: 0,
+        progressDetail: "Connecting to Google Drive...",
       });
 
       addMessage({
         id: `doc-${Date.now()}`,
         role: "system",
-        content: `[document:${filename}]`,
+        content: `[document:${gdriveFilename}]`,
       });
 
       // Ingest the GDrive folder
-      updateDocumentStatus(filename, "embedding");
+      updateDocumentStatus(gdriveFilename, "embedding", {
+        progress: 20,
+        progressDetail: "Downloading files...",
+      });
       setSessionMode("session");
 
       const result = await apiClient.ingestGDriveFolder(folderUrl, token);
@@ -300,6 +355,11 @@ export default function AttachmentMenu() {
       if (result.session_id) {
         setSessionId(result.session_id);
       }
+
+      updateDocumentStatus(gdriveFilename, "embedding", {
+        progress: 50,
+        progressDetail: "Processing documents...",
+      });
 
       // Process through documents pipeline
       const processResult = await apiClient.processDocuments(
@@ -312,9 +372,10 @@ export default function AttachmentMenu() {
         setSessionId(processResult.session_id);
       }
 
-      updateDocumentStatus(filename, "ready", {
+      updateDocumentStatus(gdriveFilename, "ready", {
         tokenCount: processResult.token_count ?? 0,
         chunkCount: processResult.chunk_count ?? 0,
+        progress: 100,
       });
 
       if (processResult.mapping) {
@@ -322,6 +383,7 @@ export default function AttachmentMenu() {
       }
     } catch (error) {
       console.error("GDrive ingestion error:", error);
+      updateDocumentStatus(gdriveFilename, "error");
     } finally {
       setIsProcessing(false);
     }
@@ -334,11 +396,11 @@ export default function AttachmentMenu() {
     setIsProcessing(true);
     closeMenu();
 
-    try {
-      const filename = "Pasted Text";
+    const pasteFilename = "Pasted Text";
 
+    try {
       addDocument({
-        filename,
+        filename: pasteFilename,
         text: pastedText,
         anonymizedText: "",
         mapping: [],
@@ -350,14 +412,14 @@ export default function AttachmentMenu() {
       addMessage({
         id: `doc-${Date.now()}`,
         role: "system",
-        content: `[document:${filename}]`,
+        content: `[document:${pasteFilename}]`,
       });
 
       // Anonymize directly
       setSessionMode("quick");
       const result = await apiClient.anonymize(pastedText, token);
 
-      updateDocumentStatus(filename, "ready", {
+      updateDocumentStatus(pasteFilename, "ready", {
         anonymizedText: result.anonymized_text,
         mapping: result.mapping,
         entitiesFound: result.entities_found ?? [],
@@ -366,6 +428,7 @@ export default function AttachmentMenu() {
       setCurrentMapping(result.mapping);
     } catch (error) {
       console.error("Text paste error:", error);
+      updateDocumentStatus(pasteFilename, "error");
     } finally {
       setIsProcessing(false);
     }

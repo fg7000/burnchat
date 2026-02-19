@@ -75,6 +75,29 @@ export function DocumentCard({ document }: DocumentCardProps) {
         </div>
       </div>
 
+      {/* Progress bar */}
+      {document.progress !== undefined &&
+        document.status !== "ready" &&
+        document.status !== "error" && (
+          <div className="mt-2 space-y-1">
+            <div className="h-1.5 w-full rounded-full bg-gray-700 overflow-hidden">
+              <div
+                className={cn(
+                  "h-full rounded-full transition-all duration-300 ease-out",
+                  document.status === "parsing" && "bg-yellow-400",
+                  document.status === "anonymizing" && "bg-teal-400",
+                  document.status === "embedding" && "bg-blue-400"
+                )}
+                style={{ width: `${Math.min(document.progress, 100)}%` }}
+              />
+            </div>
+            <div className="flex items-center justify-between text-[10px] text-gray-500">
+              <span>{document.progressDetail ?? ""}</span>
+              <span>{Math.round(document.progress)}%</span>
+            </div>
+          </div>
+        )}
+
       {/* Entity summary */}
       {document.entitiesFound.length > 0 && (
         <div className="mt-2 flex flex-wrap gap-1.5">

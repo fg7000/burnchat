@@ -29,6 +29,10 @@ export interface DocumentInfo {
   tokenCount: number;
   chunkCount?: number;
   status: "parsing" | "anonymizing" | "embedding" | "ready" | "error";
+  /** Progress percentage 0-100 for current processing step */
+  progress?: number;
+  /** Human-readable progress detail, e.g. "3 of 12 files" */
+  progressDetail?: string;
 }
 
 interface SessionState {
