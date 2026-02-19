@@ -8,8 +8,8 @@ export async function parsePDF(
 ): Promise<string> {
   const pdfjsLib = await import("pdfjs-dist");
 
-  // pdfjs-dist v4.x worker
-  pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdn.jsdelivr.net/npm/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
+  // Use locally served worker to avoid CDN fetch issues through tunnels
+  pdfjsLib.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
 
   const arrayBuffer = await file.arrayBuffer();
 

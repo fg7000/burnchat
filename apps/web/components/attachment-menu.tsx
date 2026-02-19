@@ -132,12 +132,20 @@ export default function AttachmentMenu() {
           content: `[document:${filename}]`,
         });
 
-        const text = await parseFile(file, (pct, detail) => {
-          updateDocumentStatus(filename, "parsing", {
-            progress: Math.round(pct * 0.5), // parsing = 0-50%
-            progressDetail: detail,
+        let text: string;
+        try {
+          text = await parseFile(file, (pct, detail) => {
+            updateDocumentStatus(filename, "parsing", {
+              progress: Math.round(pct * 0.5), // parsing = 0-50%
+              progressDetail: detail,
+            });
           });
-        });
+        } catch (parseError) {
+          console.error("PDF parse error:", parseError);
+          throw new Error(
+            `Failed to parse ${filename}: ${parseError instanceof Error ? parseError.message : "Unknown parsing error"}`
+          );
+        }
 
         updateDocumentStatus(filename, "anonymizing", {
           text,
