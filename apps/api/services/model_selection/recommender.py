@@ -5,6 +5,8 @@ entity density, and query complexity.  Returns a recommendation with
 reasoning, credit estimate, and alternative options.
 """
 
+from typing import Optional
+
 from services.model_selection.cost_calculator import estimate_credits
 
 
@@ -31,7 +33,7 @@ def recommend_model(
         ``estimated_credits``, ``alternatives``, and optionally ``strategy``.
     """
 
-    strategy: str | None = None
+    strategy: Optional[str] = None
 
     if token_count >= 1_000_000:
         # Massive document -- must be chunked regardless of model context.

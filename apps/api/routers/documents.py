@@ -1,4 +1,5 @@
 import uuid
+from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 
@@ -24,7 +25,7 @@ router = APIRouter()
 @router.post("/documents/process", response_model=DocumentsProcessResponse)
 async def process_documents(
     request: DocumentsProcessRequest,
-    user: dict | None = Depends(get_optional_user),
+    user: Optional[dict] = Depends(get_optional_user),
 ):
     """Anonymize, chunk, embed, and store documents in pgvector.
 

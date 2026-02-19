@@ -1,5 +1,6 @@
 import os
 from datetime import datetime, timedelta, timezone
+from typing import Optional
 from urllib.parse import urlencode
 
 import httpx
@@ -69,7 +70,7 @@ async def google_login(request: Request):
 
 
 @router.get("/auth/callback")
-async def google_callback(request: Request, code: str | None = None, error: str | None = None):
+async def google_callback(request: Request, code: Optional[str] = None, error: Optional[str] = None):
     """Handle Google's OAuth callback.
 
     Exchanges the authorization code for tokens, fetches user info,

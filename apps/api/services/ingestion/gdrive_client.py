@@ -1,5 +1,6 @@
 import os
 import re
+from typing import Optional
 
 import httpx
 from dotenv import load_dotenv
@@ -43,7 +44,7 @@ async def list_folder_files(folder_id: str) -> list[dict]:
     ``mimeType``.
     """
     all_files: list[dict] = []
-    page_token: str | None = None
+    page_token: Optional[str] = None
 
     async with httpx.AsyncClient(timeout=TIMEOUT) as client:
         while True:
