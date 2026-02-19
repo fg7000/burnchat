@@ -75,6 +75,11 @@ export function DocumentCard({ document }: DocumentCardProps) {
         </div>
       </div>
 
+      {/* Error detail */}
+      {document.status === "error" && document.errorDetail && (
+        <p className="mt-1.5 text-xs text-gray-500">{document.errorDetail}</p>
+      )}
+
       {/* Progress bar */}
       {document.progress !== undefined &&
         document.status !== "ready" &&

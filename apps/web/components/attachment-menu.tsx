@@ -13,6 +13,14 @@ import { parseImage } from "@/lib/parsers/ocr-parser";
 
 type InlineMode = null | "url" | "gdrive" | "text";
 
+function getErrorMessage(error: unknown): string {
+  if (error instanceof TypeError && error.message === "Failed to fetch") {
+    return "Could not connect to the server. Make sure the backend is running.";
+  }
+  if (error instanceof Error) return error.message;
+  return "An unexpected error occurred.";
+}
+
 export default function AttachmentMenu() {
   const showAttachmentMenu = useUIStore((s) => s.showAttachmentMenu);
   const setShowAttachmentMenu = useUIStore((s) => s.setShowAttachmentMenu);
@@ -245,8 +253,9 @@ export default function AttachmentMenu() {
       }
     } catch (error) {
       console.error("File processing error:", error);
+      const detail = getErrorMessage(error);
       for (const name of filenames) {
-        updateDocumentStatus(name, "error");
+        updateDocumentStatus(name, "error", { errorDetail: detail });
       }
     } finally {
       setIsProcessing(false);
@@ -309,7 +318,7 @@ export default function AttachmentMenu() {
       setCurrentMapping(anonResult.mapping);
     } catch (error) {
       console.error("URL ingestion error:", error);
-      updateDocumentStatus(filename, "error");
+      updateDocumentStatus(filename, "error", { errorDetail: getErrorMessage(error) });
     } finally {
       setIsProcessing(false);
     }
@@ -383,7 +392,7 @@ export default function AttachmentMenu() {
       }
     } catch (error) {
       console.error("GDrive ingestion error:", error);
-      updateDocumentStatus(gdriveFilename, "error");
+      updateDocumentStatus(gdriveFilename, "error", { errorDetail: getErrorMessage(error) });
     } finally {
       setIsProcessing(false);
     }
@@ -428,7 +437,7 @@ export default function AttachmentMenu() {
       setCurrentMapping(result.mapping);
     } catch (error) {
       console.error("Text paste error:", error);
-      updateDocumentStatus(pasteFilename, "error");
+      updateDocumentStatus(pasteFilename, "error", { errorDetail: getErrorMessage(error) });
     } finally {
       setIsProcessing(false);
     }

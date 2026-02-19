@@ -8,8 +8,8 @@ export async function parsePDF(
 ): Promise<string> {
   const pdfjsLib = await import("pdfjs-dist");
 
-  // Set worker source
-  pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
+  // Use jsdelivr which always mirrors every npm version exactly
+  pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdn.jsdelivr.net/npm/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
 
   const arrayBuffer = await file.arrayBuffer();
 
@@ -20,7 +20,7 @@ export async function parsePDF(
     new Promise<never>((_, reject) =>
       setTimeout(() => {
         loadingTask.destroy();
-        reject(new Error("PDF parsing timed out"));
+        reject(new Error("PDF parsing timed out after 30 seconds. The file may be too large or corrupted."));
       }, PARSE_TIMEOUT_MS)
     ),
   ]);

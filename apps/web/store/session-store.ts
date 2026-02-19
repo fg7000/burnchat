@@ -33,6 +33,8 @@ export interface DocumentInfo {
   progress?: number;
   /** Human-readable progress detail, e.g. "3 of 12 files" */
   progressDetail?: string;
+  /** Error message when status is "error" */
+  errorDetail?: string;
 }
 
 interface SessionState {
