@@ -13,7 +13,7 @@ import SessionListModal from "@/components/session-list-modal";
 
 export default function Home() {
   const { token, sessionMode, setCreditBalance } = useSessionStore();
-  const { showSessionSidebar } = useUIStore();
+  const { showSessionSidebar, setShowCreditModal } = useUIStore();
 
   // Check for payment success/cancel in URL params
   useEffect(() => {
@@ -22,13 +22,15 @@ export default function Home() {
     const payment = params.get("payment");
     if (payment === "success" && token) {
       apiClient.getCreditBalance(token).then((data) => {
-        setCreditBalance(data.balance);
+        setCreditBalance(data.credit_balance);
+        // Close the credit modal if it was open (e.g. from exhaustion)
+        setShowCreditModal(false);
       }).catch(() => {});
       window.history.replaceState({}, "", "/");
     } else if (payment === "cancelled") {
       window.history.replaceState({}, "", "/");
     }
-  }, [token, setCreditBalance]);
+  }, [token, setCreditBalance, setShowCreditModal]);
 
   // Warn on tab close
   useEffect(() => {

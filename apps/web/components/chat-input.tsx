@@ -12,7 +12,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { Plus, ArrowUp, Mic } from "lucide-react";
+import { Plus, ArrowUp, Mic, Coins } from "lucide-react";
 import AttachmentMenu from "@/components/attachment-menu";
 
 export default function ChatInput() {
@@ -27,6 +27,7 @@ export default function ChatInput() {
   const documents = useSessionStore((s) => s.documents);
   const isStreaming = useSessionStore((s) => s.isStreaming);
   const creditBalance = useSessionStore((s) => s.creditBalance);
+  const creditsExhausted = useSessionStore((s) => s.creditsExhausted);
   const addMessage = useSessionStore((s) => s.addMessage);
   const updateLastAssistantMessage = useSessionStore(
     (s) => s.updateLastAssistantMessage
@@ -35,6 +36,8 @@ export default function ChatInput() {
   const setIsStreaming = useSessionStore((s) => s.setIsStreaming);
 
   const setShowAttachmentMenu = useUIStore((s) => s.setShowAttachmentMenu);
+  const setShowCreditModal = useUIStore((s) => s.setShowCreditModal);
+  const setCreditModalReason = useUIStore((s) => s.setCreditModalReason);
 
   const hasText = text.trim().length > 0;
   const hasDocument = documents.length > 0;
@@ -56,6 +59,13 @@ export default function ChatInput() {
   const handleSend = useCallback(async () => {
     const trimmed = text.trim();
     if (!trimmed || isStreaming) return;
+
+    // Block sending when credits are exhausted
+    if (creditsExhausted || creditBalance <= 0) {
+      setCreditModalReason("exhausted");
+      setShowCreditModal(true);
+      return;
+    }
 
     const userMessageId = `user-${Date.now()}`;
     const assistantMessageId = `assistant-${Date.now()}`;
@@ -147,14 +157,22 @@ export default function ChatInput() {
                 fullContent += data.content;
                 updateLastAssistantMessage(fullContent);
               } else if (data.type === "done") {
+                const serverBalance = data.usage?.credit_balance;
                 setStreamingComplete(
                   assistantMessageId,
                   data.usage?.credits_used ?? 0,
                   {
                     input: data.usage?.input_tokens ?? 0,
                     output: data.usage?.output_tokens ?? 0,
-                  }
+                  },
+                  serverBalance
                 );
+
+                // Auto-open purchase modal when credits are exhausted
+                if (data.credits_exhausted) {
+                  setCreditModalReason("exhausted");
+                  setShowCreditModal(true);
+                }
               }
             } catch {
               // Skip malformed JSON lines
@@ -179,10 +197,14 @@ export default function ChatInput() {
     token,
     documents,
     hasDocument,
+    creditBalance,
+    creditsExhausted,
     addMessage,
     updateLastAssistantMessage,
     setStreamingComplete,
     setIsStreaming,
+    setShowCreditModal,
+    setCreditModalReason,
   ]);
 
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
@@ -192,15 +214,42 @@ export default function ChatInput() {
     }
   };
 
+  const handleBuyCredits = useCallback(() => {
+    setCreditModalReason("exhausted");
+    setShowCreditModal(true);
+  }, [setCreditModalReason, setShowCreditModal]);
+
   return (
     <div className="relative bg-gray-900 border-t border-gray-800 p-3">
       <AttachmentMenu />
       <div className="max-w-3xl mx-auto">
-        {/* Credit balance indicator when document loaded */}
-        {hasDocument && (
-          <div className="text-xs text-gray-500 mb-2 text-center">
-            Credit balance: {creditBalance}
+        {/* Credits exhausted banner */}
+        {creditsExhausted ? (
+          <div className="mb-3 rounded-lg border border-amber-800/50 bg-amber-950/30 px-4 py-3">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <Coins className="h-4 w-4 text-amber-400 shrink-0" />
+                <p className="text-sm text-amber-200">
+                  You&apos;ve run out of credits. Purchase more to continue chatting.
+                  Your session and documents are saved.
+                </p>
+              </div>
+              <Button
+                onClick={handleBuyCredits}
+                size="sm"
+                className="shrink-0 bg-amber-600 hover:bg-amber-500 text-white"
+              >
+                Buy Credits
+              </Button>
+            </div>
           </div>
+        ) : (
+          /* Credit balance indicator when document loaded */
+          hasDocument && (
+            <div className="text-xs text-gray-500 mb-2 text-center">
+              Credit balance: {creditBalance}
+            </div>
+          )
         )}
 
         <div className="flex items-end gap-2">
@@ -222,8 +271,8 @@ export default function ChatInput() {
               value={text}
               onChange={handleInputChange}
               onKeyDown={handleKeyDown}
-              placeholder="Ask about your document..."
-              disabled={isStreaming}
+              placeholder={creditsExhausted ? "Purchase credits to continue..." : "Ask about your document..."}
+              disabled={isStreaming || creditsExhausted}
               rows={1}
               className={cn(
                 "w-full resize-none rounded-xl bg-gray-800 border border-gray-700 px-4 py-2.5",
@@ -264,7 +313,7 @@ export default function ChatInput() {
                 : "bg-gray-700 text-gray-500"
             )}
             onClick={handleSend}
-            disabled={!hasText || isStreaming}
+            disabled={!hasText || isStreaming || creditsExhausted}
           >
             <ArrowUp className="h-5 w-5" />
           </Button>

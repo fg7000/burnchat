@@ -13,7 +13,7 @@ export default function CreditDisplay() {
   const { creditBalance } = useSessionStore();
   const { setShowCreditModal } = useUIStore();
 
-  const isLow = creditBalance === 0;
+  const isLow = creditBalance <= 0;
 
   return (
     <button

@@ -263,12 +263,19 @@ async def chat(
                 model=model,
             )
 
+        done_payload = {
+            "type": "done",
+            "usage": usage_info,
+        }
+
+        # Signal the frontend when credits have been exhausted so it can
+        # pause the session and prompt the user to purchase more.
+        if usage_info.get("credit_balance") is not None and usage_info["credit_balance"] <= 0:
+            done_payload["credits_exhausted"] = True
+
         yield {
             "event": "message",
-            "data": json.dumps({
-                "type": "done",
-                "usage": usage_info,
-            }),
+            "data": json.dumps(done_payload),
         }
 
     return EventSourceResponse(event_generator())

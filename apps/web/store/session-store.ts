@@ -43,6 +43,7 @@ interface SessionState {
   userId: string | null;
   email: string | null;
   creditBalance: number;
+  creditsExhausted: boolean;
 
   // Chat
   messages: ChatMessage[];
@@ -65,11 +66,12 @@ interface SessionState {
   setAuth: (token: string, userId: string, email: string, creditBalance: number) => void;
   clearAuth: () => void;
   setCreditBalance: (balance: number) => void;
+  setCreditsExhausted: (exhausted: boolean) => void;
 
   // Actions - Chat
   addMessage: (message: ChatMessage) => void;
   updateLastAssistantMessage: (content: string) => void;
-  setStreamingComplete: (messageId: string, creditsUsed: number, tokenCount: { input: number; output: number }) => void;
+  setStreamingComplete: (messageId: string, creditsUsed: number, tokenCount: { input: number; output: number }, newBalance?: number) => void;
   setIsStreaming: (streaming: boolean) => void;
   clearMessages: () => void;
 
@@ -96,6 +98,7 @@ const initialState = {
   userId: null,
   email: null,
   creditBalance: 50,
+  creditsExhausted: false,
   messages: [],
   isStreaming: false,
   documents: [],
@@ -116,7 +119,9 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   clearAuth: () =>
     set({ token: null, userId: null, email: null, creditBalance: 0 }),
 
-  setCreditBalance: (balance) => set({ creditBalance: balance }),
+  setCreditBalance: (balance) => set({ creditBalance: balance, creditsExhausted: balance <= 0 }),
+
+  setCreditsExhausted: (exhausted) => set({ creditsExhausted: exhausted }),
 
   addMessage: (message) =>
     set((state) => ({ messages: [...state.messages, message] })),
@@ -131,14 +136,19 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       return { messages };
     }),
 
-  setStreamingComplete: (messageId, creditsUsed, tokenCount) =>
-    set((state) => ({
-      messages: state.messages.map((m) =>
-        m.id === messageId ? { ...m, isStreaming: false, creditsUsed, tokenCount } : m
-      ),
-      isStreaming: false,
-      creditBalance: state.creditBalance - creditsUsed,
-    })),
+  setStreamingComplete: (messageId, creditsUsed, tokenCount, newBalance) =>
+    set((state) => {
+      // Use server-reported balance when available, otherwise fall back to local math
+      const creditBalance = newBalance !== undefined ? newBalance : state.creditBalance - creditsUsed;
+      return {
+        messages: state.messages.map((m) =>
+          m.id === messageId ? { ...m, isStreaming: false, creditsUsed, tokenCount } : m
+        ),
+        isStreaming: false,
+        creditBalance,
+        creditsExhausted: creditBalance <= 0,
+      };
+    }),
 
   setIsStreaming: (streaming) => set({ isStreaming: streaming }),
 
