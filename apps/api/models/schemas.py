@@ -4,6 +4,7 @@ from typing import Optional
 
 class AnonymizeRequest(BaseModel):
     text: str
+    existing_mapping: Optional[list["MappingEntry"]] = None
 
 
 class EntityInfo(BaseModel):

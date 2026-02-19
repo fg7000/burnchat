@@ -61,7 +61,7 @@ export default function ChatInput() {
     if (!trimmed || isStreaming) return;
 
     // Block sending when credits are exhausted
-    if (creditsExhausted || creditBalance <= 0) {
+    if (creditsExhausted) {
       setCreditModalReason("exhausted");
       setShowCreditModal(true);
       return;
@@ -195,7 +195,6 @@ export default function ChatInput() {
     token,
     documents,
     hasDocument,
-    creditBalance,
     creditsExhausted,
     addMessage,
     updateLastAssistantMessage,

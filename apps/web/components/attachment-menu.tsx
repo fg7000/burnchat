@@ -15,9 +15,21 @@ type InlineMode = null | "url" | "gdrive" | "text";
 
 function getErrorMessage(error: unknown): string {
   if (error instanceof TypeError && error.message === "Failed to fetch") {
-    return "Could not connect to the server. Make sure the backend is running.";
+    return "Could not connect to the server. Make sure the backend is running on port 8000.";
   }
-  if (error instanceof Error) return error.message;
+  if (error instanceof DOMException && error.name === "AbortError") {
+    return "Request timed out. The document may be too large — try a smaller file.";
+  }
+  if (error instanceof Error) {
+    // Surface HTTP error details from the backend
+    if (error.message.includes("402")) {
+      return "Insufficient credits. Please purchase more credits to continue.";
+    }
+    if (error.message.includes("401")) {
+      return "Authentication required. Please sign in first.";
+    }
+    return error.message;
+  }
   return "An unexpected error occurred.";
 }
 
@@ -133,49 +145,23 @@ export default function AttachmentMenu() {
           progressDetail: "Anonymizing...",
         });
 
-        if (text.length < 100_000) {
-          // Quick Mode: single file under 100K chars
-          setSessionMode("quick");
-          const result = await apiClient.anonymize(text, token);
-
-          updateDocumentStatus(filename, "ready", {
-            anonymizedText: result.anonymized_text,
-            mapping: result.mapping,
-            entitiesFound: result.entities_found ?? [],
-            tokenCount: result.token_count ?? 0,
-            progress: 100,
+        // Always anonymize via chunked API (handles large files without timeout)
+        setSessionMode("quick");
+        const result = await apiClient.anonymizeChunked(text, token, (pct, detail) => {
+          updateDocumentStatus(filename, "anonymizing", {
+            progress: 50 + Math.round(pct * 0.5), // anonymizing = 50-100%
+            progressDetail: detail,
           });
-          setCurrentMapping(result.mapping);
-        } else {
-          // Session Mode: large file
-          setSessionMode("session");
-          updateDocumentStatus(filename, "embedding", {
-            progress: 60,
-            progressDetail: "Creating embeddings...",
-          });
+        });
 
-          const result = await apiClient.processDocuments(
-            [{ filename, text }],
-            sessionId,
-            token
-          );
-
-          if (result.session_id) {
-            setSessionId(result.session_id);
-          }
-
-          updateDocumentStatus(filename, "ready", {
-            anonymizedText: result.anonymized_text ?? "",
-            mapping: result.mapping ?? [],
-            entitiesFound: result.entities_found ?? [],
-            tokenCount: result.token_count ?? 0,
-            chunkCount: result.chunk_count ?? 0,
-            progress: 100,
-          });
-          if (result.mapping) {
-            setCurrentMapping(result.mapping);
-          }
-        }
+        updateDocumentStatus(filename, "ready", {
+          anonymizedText: result.anonymized_text,
+          mapping: result.mapping,
+          entitiesFound: result.entities_found ?? [],
+          tokenCount: result.token_count ?? 0,
+          progress: 100,
+        });
+        setCurrentMapping(result.mapping);
       } else {
         // Multiple files -> Session Mode
         setSessionMode("session");
@@ -221,34 +207,36 @@ export default function AttachmentMenu() {
           parsedDocs.push({ filename, text });
         }
 
-        // Process all documents together
+        // Anonymize each document via chunked API
+        setSessionMode("quick");
+        let combinedMapping: { original: string; replacement: string; entity_type: string }[] = [];
+
         for (const doc of parsedDocs) {
-          updateDocumentStatus(doc.filename, "embedding", {
+          updateDocumentStatus(doc.filename, "anonymizing", {
             progress: 60,
-            progressDetail: "Creating embeddings...",
+            progressDetail: "Anonymizing...",
           });
-        }
 
-        const result = await apiClient.processDocuments(
-          parsedDocs,
-          sessionId,
-          token
-        );
+          const result = await apiClient.anonymizeChunked(doc.text, token, (pct, detail) => {
+            updateDocumentStatus(doc.filename, "anonymizing", {
+              progress: 60 + Math.round(pct * 0.4),
+              progressDetail: detail,
+            });
+          });
 
-        if (result.session_id) {
-          setSessionId(result.session_id);
-        }
-
-        for (const doc of parsedDocs) {
           updateDocumentStatus(doc.filename, "ready", {
+            anonymizedText: result.anonymized_text,
+            mapping: result.mapping,
+            entitiesFound: result.entities_found ?? [],
             tokenCount: result.token_count ?? 0,
-            chunkCount: result.chunk_count ?? 0,
             progress: 100,
           });
+
+          combinedMapping = [...combinedMapping, ...result.mapping];
         }
 
-        if (result.mapping) {
-          setCurrentMapping(result.mapping);
+        if (combinedMapping.length > 0) {
+          setCurrentMapping(combinedMapping);
         }
       }
     } catch (error) {
@@ -306,7 +294,7 @@ export default function AttachmentMenu() {
 
       // Anonymize the result
       setSessionMode("quick");
-      const anonResult = await apiClient.anonymize(text, token);
+      const anonResult = await apiClient.anonymizeChunked(text, token);
 
       updateDocumentStatus(filename, "ready", {
         anonymizedText: anonResult.anonymized_text,
@@ -424,9 +412,9 @@ export default function AttachmentMenu() {
         content: `[document:${pasteFilename}]`,
       });
 
-      // Anonymize directly
+      // Anonymize directly (chunked for large texts)
       setSessionMode("quick");
-      const result = await apiClient.anonymize(pastedText, token);
+      const result = await apiClient.anonymizeChunked(pastedText, token);
 
       updateDocumentStatus(pasteFilename, "ready", {
         anonymizedText: result.anonymized_text,

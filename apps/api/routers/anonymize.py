@@ -23,7 +23,15 @@ async def anonymize_text(request: AnonymizeRequest) -> AnonymizeResponse:
     """
     raw_text: str = request.text
 
-    result = anonymize(raw_text)
+    # Pass through existing_mapping for chunked anonymization consistency
+    existing = None
+    if request.existing_mapping:
+        existing = [
+            {"original": m.original, "replacement": m.replacement, "entity_type": m.entity_type}
+            for m in request.existing_mapping
+        ]
+
+    result = anonymize(raw_text, existing_mapping=existing)
 
     # Explicitly discard the raw input reference.
     del raw_text

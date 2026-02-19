@@ -1,9 +1,10 @@
 const BACKEND_URL = "http://localhost:8000";
 
 export const runtime = "nodejs";
-
-// Disable Next.js body parser — we stream the raw body ourselves
 export const dynamic = "force-dynamic";
+
+// Allow up to 5 minutes for large document processing (anonymize + chunk + embed)
+export const maxDuration = 300;
 
 async function handler(request: Request) {
   const url = new URL(request.url);
@@ -11,7 +12,6 @@ async function handler(request: Request) {
 
   const headers = new Headers();
   request.headers.forEach((value, key) => {
-    // Forward all headers except host
     if (key.toLowerCase() !== "host") {
       headers.set(key, value);
     }
@@ -22,11 +22,10 @@ async function handler(request: Request) {
     headers,
   };
 
-  // Forward body for non-GET/HEAD requests
+  // Buffer and forward body for non-GET/HEAD requests
+  // Buffering is more reliable than streaming through the proxy
   if (request.method !== "GET" && request.method !== "HEAD") {
-    init.body = request.body;
-    // @ts-expect-error - Node.js fetch supports duplex streaming
-    init.duplex = "half";
+    init.body = await request.arrayBuffer();
   }
 
   try {
@@ -42,7 +41,8 @@ async function handler(request: Request) {
       statusText: response.statusText,
       headers: responseHeaders,
     });
-  } catch {
+  } catch (error) {
+    console.error(`[proxy] ${request.method} ${url.pathname} failed:`, error);
     return new Response(
       JSON.stringify({ detail: "Backend unavailable" }),
       { status: 502, headers: { "Content-Type": "application/json" } }

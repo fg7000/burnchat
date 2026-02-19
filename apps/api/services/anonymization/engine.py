@@ -52,8 +52,12 @@ _analyzer: AnalyzerEngine = _build_analyzer()
 # Public API
 # ------------------------------------------------------------------
 
-def anonymize(text: str) -> dict:
+def anonymize(text: str, existing_mapping: list[dict] | None = None) -> dict:
     """Detect PII in *text*, replace with fake values, and return results.
+
+    If *existing_mapping* is provided, pre-populates the replacement cache so
+    that entities seen in earlier chunks get the same fake value.  This enables
+    consistent anonymization when the client splits large texts into chunks.
 
     Returns a dict matching the ``AnonymizeResponse`` schema::
 
@@ -83,6 +87,15 @@ def anonymize(text: str) -> dict:
 
     # 3. Build replacements ------------------------------------------------
     generator = FakeGenerator(text)
+
+    # Pre-populate the cache with previously seen entity replacements so
+    # chunked anonymization stays consistent across calls.
+    if existing_mapping:
+        for entry in existing_mapping:
+            key = (entry.get("entity_type", ""), entry.get("original", ""))
+            if key[0] and key[1] and "replacement" in entry:
+                generator._cache[key] = entry["replacement"]
+
     mapping: list[dict] = []
     seen: set[tuple[str, str]] = set()
 

@@ -11,14 +11,79 @@ class ApiClient {
     return headers;
   }
 
-  async anonymize(text: string, token?: string | null) {
+  async anonymize(
+    text: string,
+    token?: string | null,
+    existingMapping?: { original: string; replacement: string; entity_type: string }[]
+  ) {
+    const payload: Record<string, unknown> = { text };
+    if (existingMapping && existingMapping.length > 0) {
+      payload.existing_mapping = existingMapping;
+    }
     const res = await fetch(`${API_URL}/api/anonymize`, {
       method: "POST",
       headers: this.getHeaders(token),
-      body: JSON.stringify({ text }),
+      body: JSON.stringify(payload),
     });
     if (!res.ok) throw new Error(await res.text());
     return res.json();
+  }
+
+  /**
+   * Anonymize large text by splitting into chunks and processing each
+   * sequentially. Each chunk sends the accumulated mapping from previous
+   * chunks so entity replacements stay consistent.
+   */
+  async anonymizeChunked(
+    text: string,
+    token?: string | null,
+    onProgress?: (pct: number, detail?: string) => void
+  ) {
+    const CHUNK_SIZE = 30_000;
+    const chunks = splitTextIntoChunks(text, CHUNK_SIZE);
+
+    if (chunks.length <= 1) {
+      // Small enough for a single call
+      return this.anonymize(text, token);
+    }
+
+    let allAnonymized = "";
+    let allMapping: { original: string; replacement: string; entity_type: string }[] = [];
+    const entityCounts: Record<string, number> = {};
+
+    for (let i = 0; i < chunks.length; i++) {
+      onProgress?.(
+        Math.round(((i) / chunks.length) * 100),
+        `Anonymizing part ${i + 1} of ${chunks.length}...`
+      );
+
+      const result = await this.anonymize(chunks[i], token, allMapping);
+
+      allAnonymized += result.anonymized_text;
+
+      // Accumulate mapping (deduplicate by original+entity_type)
+      const seen = new Set(allMapping.map((m: { entity_type: string; original: string }) => `${m.entity_type}:${m.original}`));
+      for (const entry of result.mapping) {
+        const key = `${entry.entity_type}:${entry.original}`;
+        if (!seen.has(key)) {
+          seen.add(key);
+          allMapping.push(entry);
+        }
+      }
+
+      // Accumulate entity counts
+      for (const entity of result.entities_found) {
+        entityCounts[entity.type] = (entityCounts[entity.type] || 0) + entity.count;
+      }
+    }
+
+    onProgress?.(100, "Anonymization complete");
+
+    return {
+      anonymized_text: allAnonymized,
+      mapping: allMapping,
+      entities_found: Object.entries(entityCounts).map(([type, count]) => ({ type, count })),
+    };
   }
 
   async ingestUrl(url: string, token?: string | null) {
@@ -208,6 +273,44 @@ class ApiClient {
     if (!res.ok) throw new Error(await res.text());
     return res.json();
   }
+}
+
+/**
+ * Split text into chunks at paragraph boundaries ("\n\n"), keeping each
+ * chunk under `maxChars`.  Falls back to hard splits if a single paragraph
+ * exceeds the limit.
+ */
+function splitTextIntoChunks(text: string, maxChars: number): string[] {
+  if (text.length <= maxChars) return [text];
+
+  const paragraphs = text.split("\n\n");
+  const chunks: string[] = [];
+  let current = "";
+
+  for (const para of paragraphs) {
+    const candidate = current ? current + "\n\n" + para : para;
+
+    if (candidate.length <= maxChars) {
+      current = candidate;
+    } else {
+      if (current) chunks.push(current);
+
+      // If a single paragraph exceeds maxChars, split it at maxChars
+      if (para.length > maxChars) {
+        let remaining = para;
+        while (remaining.length > maxChars) {
+          chunks.push(remaining.slice(0, maxChars));
+          remaining = remaining.slice(maxChars);
+        }
+        current = remaining;
+      } else {
+        current = para;
+      }
+    }
+  }
+
+  if (current) chunks.push(current);
+  return chunks;
 }
 
 export const apiClient = new ApiClient();

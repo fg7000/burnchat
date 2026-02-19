@@ -114,7 +114,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   ...initialState,
 
   setAuth: (token, userId, email, creditBalance) =>
-    set({ token, userId, email, creditBalance }),
+    set({ token, userId, email, creditBalance, creditsExhausted: creditBalance <= 0 }),
 
   clearAuth: () =>
     set({ token: null, userId: null, email: null, creditBalance: 0 }),
