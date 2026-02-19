@@ -1,4 +1,5 @@
 const API_URL = "";
+console.log("[api-client] API_URL =", JSON.stringify(API_URL));
 
 class ApiClient {
   private getHeaders(token?: string | null): HeadersInit {
@@ -173,7 +174,9 @@ class ApiClient {
   }
 
   async getModels(token?: string | null) {
-    const res = await fetch(`${API_URL}/api/models`, {
+    const url = `${API_URL}/api/models`;
+    console.log("[api-client] getModels fetching:", url);
+    const res = await fetch(url, {
       headers: this.getHeaders(token),
     });
     if (!res.ok) throw new Error(await res.text());
