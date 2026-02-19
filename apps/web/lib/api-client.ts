@@ -1,4 +1,4 @@
-const API_URL = "/app";
+const API_URL = "/b";
 
 class ApiClient {
   private getHeaders(token?: string | null): HeadersInit {

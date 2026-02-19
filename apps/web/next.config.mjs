@@ -1,17 +1,17 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  basePath: "/app",
+  basePath: "/b",
   webpack: (config) => {
     // Handle pdf.js worker
     config.resolve.alias.canvas = false;
     return config;
   },
-  // Redirect / to /app since basePath won't handle bare root
+  // Redirect / to /b since basePath won't handle bare root
   async redirects() {
     return [
       {
         source: "/",
-        destination: "/app",
+        destination: "/b",
         basePath: false,
         permanent: false,
       },
