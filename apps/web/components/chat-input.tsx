@@ -120,7 +120,7 @@ export default function ChatInput() {
       }
 
       // Call streaming chat via Next.js proxy
-      const url = "/b/api/chat";
+      const url = "/api/chat";
       const body = JSON.stringify({
         model: selectedModel,
         messages: chatHistory,
