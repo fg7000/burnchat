@@ -19,17 +19,10 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="BurnChat API", version="1.0.0", lifespan=lifespan)
 
-origins = [
-    "http://localhost:3000",
-    "http://localhost:3001",
-    "https://burnchat.ai",
-    "https://www.burnchat.ai",
-]
-
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
-    allow_credentials=True,
+    allow_origins=["*"],
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
