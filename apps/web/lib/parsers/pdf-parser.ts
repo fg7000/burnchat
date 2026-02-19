@@ -8,12 +8,17 @@ export async function parsePDF(
 ): Promise<string> {
   const pdfjsLib = await import("pdfjs-dist");
 
-  // Use locally served worker to avoid CDN fetch issues through tunnels
-  pdfjsLib.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
+  // Disable the web worker entirely — run on main thread.
+  // This avoids worker fetch/load issues through tunnels and proxies.
+  pdfjsLib.GlobalWorkerOptions.workerSrc = "";
 
   const arrayBuffer = await file.arrayBuffer();
 
-  const loadingTask = pdfjsLib.getDocument({ data: new Uint8Array(arrayBuffer) });
+  const loadingTask = pdfjsLib.getDocument({
+    data: new Uint8Array(arrayBuffer),
+    disableAutoFetch: true,
+    useWorkerFetch: false,
+  });
 
   const pdf = await Promise.race([
     loadingTask.promise,

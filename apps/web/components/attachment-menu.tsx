@@ -14,6 +14,13 @@ import { parseImage } from "@/lib/parsers/ocr-parser";
 type InlineMode = null | "url" | "gdrive" | "text";
 
 function getErrorMessage(error: unknown): string {
+  // Log full error details for debugging
+  console.error("[attachment-menu] Error details:", {
+    type: error?.constructor?.name,
+    message: error instanceof Error ? error.message : String(error),
+    stack: error instanceof Error ? error.stack : undefined,
+  });
+
   if (error instanceof TypeError && error.message === "Failed to fetch") {
     return "Could not connect to the server. Make sure the backend is running on port 8000.";
   }
@@ -21,7 +28,6 @@ function getErrorMessage(error: unknown): string {
     return "Request timed out. The document may be too large — try a smaller file.";
   }
   if (error instanceof Error) {
-    // Surface HTTP error details from the backend
     if (error.message.includes("402")) {
       return "Insufficient credits. Please purchase more credits to continue.";
     }
