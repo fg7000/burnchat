@@ -22,13 +22,12 @@ export default function Home() {
   useEffect(() => {
     if (typeof window === "undefined") return;
 
-    // Source 1: URL param
+    // Source 1: URL param — check both "auth_token" (new server) and "token" (old server)
     const params = new URLSearchParams(window.location.search);
-    const urlToken = params.get("auth_token");
+    const urlToken = params.get("auth_token") || params.get("token");
     if (urlToken) {
-      params.delete("auth_token");
-      const clean = params.toString();
-      window.history.replaceState({}, "", clean ? `/?${clean}` : "/");
+      // Clean up the URL (strip token + go to / if we're on /auth/callback)
+      window.history.replaceState({}, "", "/");
     }
 
     // Source 2: localStorage "burnchat_auth" (set by /api/auth/callback HTML)

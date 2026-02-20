@@ -12,12 +12,18 @@ export default function AuthCallback() {
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const token = params.get("token");
+    const token = params.get("token") || params.get("auth_token");
 
     if (!token) {
       setError("No authentication token received. Please try again.");
       return;
     }
+
+    // Always store token in localStorage as a fallback — if this page
+    // fails to hydrate fully, the main app will pick it up on next load.
+    try {
+      localStorage.setItem("burnchat_pending_token", token);
+    } catch { /* storage blocked */ }
 
     apiClient
       .getMe(token)
@@ -26,7 +32,9 @@ export default function AuthCallback() {
         router.push("/");
       })
       .catch(() => {
-        setError("Authentication failed. Please try again.");
+        // API call failed but token is in localStorage — redirect home
+        // so the main page can retry.
+        router.push("/");
       });
   }, [router, setAuth]);
 
@@ -34,7 +42,7 @@ export default function AuthCallback() {
     return (
       <div className="flex h-screen items-center justify-center bg-gray-950">
         <div className="max-w-md rounded-lg border border-gray-700 bg-gray-900 p-8 text-center">
-          <div className="mb-4 text-4xl">⚠️</div>
+          <div className="mb-4 text-4xl">&#x26A0;&#xFE0F;</div>
           <h1 className="mb-2 text-xl font-semibold text-gray-100">
             Authentication Error
           </h1>
