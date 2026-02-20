@@ -41,8 +41,13 @@ def _build_base_url(request: Request) -> str:
 
 
 def _build_redirect_uri(request: Request) -> str:
-    """Build the OAuth callback URI based on the incoming request host."""
-    return f"{_build_base_url(request)}/api/auth/callback"
+    """Build the OAuth callback URI.
+
+    Always use FRONTEND_URL so the redirect goes through the frontend proxy.
+    This is critical when the backend runs on a different port (e.g. 8000)
+    behind the Next.js dev-server proxy on port 3000.
+    """
+    return f"{FRONTEND_URL.rstrip('/')}/api/auth/callback"
 
 
 def _issue_jwt(user_id: str, email: str) -> str:
