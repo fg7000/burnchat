@@ -1,14 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 
 /**
- * Redirect /auth/callback to / so stale cached proxy responses don't show 404.
- *
- * This is a safety net. The primary auth flow (GIS Code Client) never uses
- * /auth/callback at all — it POSTs to /api/auth/google-code and gets JSON back.
+ * Middleware that:
+ * 1. Redirects /auth/callback to / (safety net for stale cached proxy responses)
+ * 2. Adds aggressive anti-cache headers to ALL responses to defeat proxy caching
  */
 export function middleware(request: NextRequest) {
   const { pathname, searchParams } = request.nextUrl;
 
+  // Redirect /auth/callback to / with token preserved
   if (pathname === "/auth/callback" || pathname === "/auth/callback/") {
     const token = searchParams.get("token") || searchParams.get("auth_token");
     if (token) {
@@ -21,9 +21,21 @@ export function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL("/", request.url));
   }
 
-  return NextResponse.next();
+  // Add aggressive anti-cache headers to ALL responses
+  const response = NextResponse.next();
+  response.headers.set(
+    "Cache-Control",
+    "no-store, no-cache, must-revalidate, max-age=0, s-maxage=0, proxy-revalidate"
+  );
+  response.headers.set("Pragma", "no-cache");
+  response.headers.set("Expires", "0");
+  response.headers.set("Surrogate-Control", "no-store");
+  response.headers.set("Vary", "*");
+
+  return response;
 }
 
 export const config = {
-  matcher: ["/auth/callback", "/auth/callback/"],
+  // Match all paths except static files and API routes
+  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
 };

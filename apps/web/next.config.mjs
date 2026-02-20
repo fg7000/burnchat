@@ -11,6 +11,20 @@ const nextConfig = {
     config.resolve.alias.canvas = false;
     return config;
   },
+  // Aggressive anti-cache headers on ALL responses to defeat proxy caching.
+  async headers() {
+    return [
+      {
+        source: "/(.*)",
+        headers: [
+          { key: "Cache-Control", value: "no-store, no-cache, must-revalidate, max-age=0, s-maxage=0, proxy-revalidate" },
+          { key: "Pragma", value: "no-cache" },
+          { key: "Expires", value: "0" },
+          { key: "Surrogate-Control", value: "no-store" },
+        ],
+      },
+    ];
+  },
   // Proxy API requests to the Python backend during `next dev`.
   // (rewrites are ignored by `next export` but active in the dev server)
   async rewrites() {
