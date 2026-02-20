@@ -1,30 +1,11 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  output: "standalone",
+  output: "export",
+  images: { unoptimized: true },
   webpack: (config) => {
     // Handle pdf.js worker
     config.resolve.alias.canvas = false;
     return config;
-  },
-  async headers() {
-    return [
-      {
-        source: "/:path*",
-        headers: [
-          { key: "Cache-Control", value: "no-store, no-cache, must-revalidate, max-age=0" },
-          { key: "Pragma", value: "no-cache" },
-          { key: "Expires", value: "0" },
-        ],
-      },
-    ];
-  },
-  async rewrites() {
-    return [
-      {
-        source: "/api/:path*",
-        destination: "http://127.0.0.1:8000/api/:path*",
-      },
-    ];
   },
 };
 
