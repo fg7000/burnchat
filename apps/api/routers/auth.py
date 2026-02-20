@@ -218,10 +218,21 @@ async def google_code_login(request: Request):
     authorization code in a Google-managed popup (no redirects). The code
     is POSTed here and exchanged for tokens using redirect_uri='postmessage'.
     """
-    body = await request.json()
+    body_raw = await request.body()
+    print(f"[google-code] Content-Type: {request.headers.get('content-type')}")
+    print(f"[google-code] Raw body ({len(body_raw)} bytes): {body_raw[:500]!r}")
+
+    import json as _json
+    try:
+        body = _json.loads(body_raw) if body_raw else {}
+    except Exception as e:
+        print(f"[google-code] JSON parse error: {e}")
+        raise HTTPException(status_code=400, detail=f"Invalid JSON: {e}")
+
     code = body.get("code")
+    print(f"[google-code] Code present: {bool(code)}, type: {type(code).__name__}, keys: {list(body.keys())}")
     if not code:
-        raise HTTPException(status_code=400, detail="Missing code")
+        raise HTTPException(status_code=400, detail=f"Missing code. Received keys: {list(body.keys())}")
 
     # Exchange authorization code for tokens (redirect_uri='postmessage' for
     # codes obtained via the JS library's popup flow)
