@@ -22,7 +22,7 @@ function getErrorMessage(error: unknown): string {
   });
 
   if (error instanceof TypeError && error.message === "Failed to fetch") {
-    return "Could not connect to the server. Make sure the backend is running on port 8000.";
+    return "Could not connect to the server. Make sure the backend is running.";
   }
   if (error instanceof DOMException && error.name === "AbortError") {
     return "Request timed out. The document may be too large — try a smaller file.";

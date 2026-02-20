@@ -1,4 +1,20 @@
-const API_URL = "";
+/**
+ * All API calls use relative URLs (e.g. "/api/models") so they route
+ * through the Next.js dev-server rewrite to the Python backend.
+ *
+ * safeFetch() is a belt-and-suspenders guard: if any stale browser cache
+ * still holds compiled JS with an absolute "http://localhost:8000" URL,
+ * the wrapper strips it back to a relative path before the request fires.
+ */
+
+function safeFetch(input: string | Request, init?: RequestInit): Promise<Response> {
+  if (typeof input === "string") {
+    input = input.replace(/^https?:\/\/localhost:\d+/, "");
+  } else if (input instanceof Request && /^https?:\/\/localhost:\d+/.test(input.url)) {
+    input = new Request(input.url.replace(/^https?:\/\/localhost:\d+/, ""), input);
+  }
+  return fetch(input, init);
+}
 
 class ApiClient {
   private getHeaders(token?: string | null): HeadersInit {
@@ -20,7 +36,7 @@ class ApiClient {
     if (existingMapping && existingMapping.length > 0) {
       payload.existing_mapping = existingMapping;
     }
-    const res = await fetch(`${API_URL}/api/anonymize`, {
+    const res = await safeFetch("/api/anonymize", {
       method: "POST",
       headers: this.getHeaders(token),
       body: JSON.stringify(payload),
@@ -87,7 +103,7 @@ class ApiClient {
   }
 
   async ingestUrl(url: string, token?: string | null) {
-    const res = await fetch(`${API_URL}/api/ingest-url`, {
+    const res = await safeFetch("/api/ingest-url", {
       method: "POST",
       headers: this.getHeaders(token),
       body: JSON.stringify({ url }),
@@ -97,7 +113,7 @@ class ApiClient {
   }
 
   async ingestGDriveFolder(folderUrl: string, token?: string | null) {
-    const res = await fetch(`${API_URL}/api/ingest-gdrive-folder`, {
+    const res = await safeFetch("/api/ingest-gdrive-folder", {
       method: "POST",
       headers: this.getHeaders(token),
       body: JSON.stringify({ folder_url: folderUrl }),
@@ -111,7 +127,7 @@ class ApiClient {
     sessionId?: string | null,
     token?: string | null
   ) {
-    const res = await fetch(`${API_URL}/api/documents/process`, {
+    const res = await safeFetch("/api/documents/process", {
       method: "POST",
       headers: this.getHeaders(token),
       body: JSON.stringify({ documents, session_id: sessionId }),
@@ -121,7 +137,7 @@ class ApiClient {
   }
 
   async searchDocuments(sessionId: string, query: string, topK: number = 10, token?: string | null) {
-    const res = await fetch(`${API_URL}/api/documents/search`, {
+    const res = await safeFetch("/api/documents/search", {
       method: "POST",
       headers: this.getHeaders(token),
       body: JSON.stringify({ session_id: sessionId, query, top_k: topK }),
@@ -139,7 +155,7 @@ class ApiClient {
       token?: string | null;
     }
   ) {
-    const url = `${API_URL}/api/chat`;
+    const url = "/api/chat";
     const body = JSON.stringify({
       model,
       messages,
@@ -159,7 +175,7 @@ class ApiClient {
 
     const controller = new AbortController();
 
-    const readerPromise = fetch(url, {
+    const readerPromise = safeFetch(url, {
       method: "POST",
       headers,
       body,
@@ -173,7 +189,7 @@ class ApiClient {
   }
 
   async getModels(token?: string | null) {
-    const res = await fetch(`${API_URL}/api/models`, {
+    const res = await safeFetch("/api/models", {
       headers: this.getHeaders(token),
     });
     if (!res.ok) throw new Error(await res.text());
@@ -181,7 +197,7 @@ class ApiClient {
   }
 
   async recommendModel(tokenCount: number, entityCount: number, query: string, token?: string | null) {
-    const res = await fetch(`${API_URL}/api/recommend-model`, {
+    const res = await safeFetch("/api/recommend-model", {
       method: "POST",
       headers: this.getHeaders(token),
       body: JSON.stringify({ token_count: tokenCount, entity_count: entityCount, query }),
@@ -191,7 +207,7 @@ class ApiClient {
   }
 
   async getMe(token: string) {
-    const res = await fetch(`${API_URL}/api/auth/me`, {
+    const res = await safeFetch("/api/auth/me", {
       headers: this.getHeaders(token),
     });
     if (!res.ok) throw new Error(await res.text());
@@ -199,11 +215,11 @@ class ApiClient {
   }
 
   getGoogleAuthUrl() {
-    return `${API_URL}/api/auth/google`;
+    return "/api/auth/google";
   }
 
   async getCreditBalance(token: string) {
-    const res = await fetch(`${API_URL}/api/credits/balance`, {
+    const res = await safeFetch("/api/credits/balance", {
       headers: this.getHeaders(token),
     });
     if (!res.ok) throw new Error(await res.text());
@@ -211,7 +227,7 @@ class ApiClient {
   }
 
   async getCreditHistory(token: string) {
-    const res = await fetch(`${API_URL}/api/credits/history`, {
+    const res = await safeFetch("/api/credits/history", {
       headers: this.getHeaders(token),
     });
     if (!res.ok) throw new Error(await res.text());
@@ -219,7 +235,7 @@ class ApiClient {
   }
 
   async purchaseCredits(packageId: string, token: string) {
-    const res = await fetch(`${API_URL}/api/credits/purchase`, {
+    const res = await safeFetch("/api/credits/purchase", {
       method: "POST",
       headers: this.getHeaders(token),
       body: JSON.stringify({ package_id: packageId }),
@@ -230,7 +246,7 @@ class ApiClient {
 
   // Sessions
   async createSession(name: string, mappingEncrypted: string, token: string) {
-    const res = await fetch(`${API_URL}/api/sessions/create`, {
+    const res = await safeFetch("/api/sessions/create", {
       method: "POST",
       headers: this.getHeaders(token),
       body: JSON.stringify({ name, mapping_encrypted: mappingEncrypted }),
@@ -240,7 +256,7 @@ class ApiClient {
   }
 
   async saveSessionMapping(sessionId: string, mappingEncrypted: string, token: string) {
-    const res = await fetch(`${API_URL}/api/sessions/save-mapping`, {
+    const res = await safeFetch("/api/sessions/save-mapping", {
       method: "POST",
       headers: this.getHeaders(token),
       body: JSON.stringify({ session_id: sessionId, mapping_encrypted: mappingEncrypted }),
@@ -250,7 +266,7 @@ class ApiClient {
   }
 
   async listSessions(token: string) {
-    const res = await fetch(`${API_URL}/api/sessions/list`, {
+    const res = await safeFetch("/api/sessions/list", {
       headers: this.getHeaders(token),
     });
     if (!res.ok) throw new Error(await res.text());
@@ -258,7 +274,7 @@ class ApiClient {
   }
 
   async getSession(sessionId: string, token: string) {
-    const res = await fetch(`${API_URL}/api/sessions/${sessionId}`, {
+    const res = await safeFetch(`/api/sessions/${sessionId}`, {
       headers: this.getHeaders(token),
     });
     if (!res.ok) throw new Error(await res.text());
@@ -266,7 +282,7 @@ class ApiClient {
   }
 
   async deleteSession(sessionId: string, token: string) {
-    const res = await fetch(`${API_URL}/api/sessions/${sessionId}`, {
+    const res = await safeFetch(`/api/sessions/${sessionId}`, {
       method: "DELETE",
       headers: this.getHeaders(token),
     });
