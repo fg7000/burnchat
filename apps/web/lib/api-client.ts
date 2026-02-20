@@ -13,7 +13,6 @@ function safeFetch(input: string | Request, init?: RequestInit): Promise<Respons
   } else if (input instanceof Request && /^https?:\/\/localhost:\d+/.test(input.url)) {
     input = new Request(input.url.replace(/^https?:\/\/localhost:\d+/, ""), input);
   }
-  console.log("[safeFetch]", typeof input === "string" ? input : input.url);
   return fetch(input, init);
 }
 
