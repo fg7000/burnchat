@@ -1,6 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  output: "export",
+  // Static export only for production builds; dev server needs rewrites.
+  ...(process.env.NODE_ENV === "production" ? { output: "export" } : {}),
   images: { unoptimized: true },
   webpack: (config) => {
     // Handle pdf.js worker
