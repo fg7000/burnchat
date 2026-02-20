@@ -15,7 +15,7 @@ from services.stripe_client import (
 
 router = APIRouter(tags=["credits"])
 
-FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
+FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3001")
 
 
 @router.get("/credits/balance")
