@@ -41,7 +41,11 @@ export default function Home() {
       }
     } catch { /* ignore parse errors */ }
 
-    // Source 3: legacy pending token
+    // Source 3: "burnchat_pending_token" (set by static auth/callback/index.html)
+    const pendingToken = localStorage.getItem("burnchat_pending_token");
+    if (pendingToken) localStorage.removeItem("burnchat_pending_token");
+
+    // Source 4: legacy pending token
     const legacyToken = localStorage.getItem("pending_auth_token");
     if (legacyToken) localStorage.removeItem("pending_auth_token");
 
@@ -52,7 +56,7 @@ export default function Home() {
     }
 
     // Fall back to token-only sources (need /api/auth/me call)
-    const pending = urlToken || legacyToken;
+    const pending = urlToken || pendingToken || legacyToken;
     if (!pending) return;
 
     apiClient
@@ -63,12 +67,20 @@ export default function Home() {
       .catch(() => {});
   }, [setAuth]);
 
-  // Listen for postMessage from auth popup
+  // Listen for postMessage from auth popup (both formats)
   useEffect(() => {
     const handler = (e: MessageEvent) => {
+      // Format 1: full auth data from inline HTML callback
       if (e.data?.type === "burnchat_auth" && e.data.auth?.token) {
         const { token: t, user_id, email: em, credit_balance } = e.data.auth;
         setAuth(t, user_id, em, credit_balance);
+        return;
+      }
+      // Format 2: token-only from static callback page
+      if (e.data?.type === "burnchat_auth_token" && e.data.token) {
+        apiClient.getMe(e.data.token).then((user) => {
+          setAuth(e.data.token, user.user_id, user.email, user.credit_balance);
+        }).catch(() => {});
       }
     };
     window.addEventListener("message", handler);

@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Signing in - BurnChat</title>
+<style>
+  body { background: #030712; color: #9ca3af; display: flex; align-items: center;
+         justify-content: center; height: 100vh; margin: 0; font-family: system-ui, sans-serif; }
+  .spinner { width: 32px; height: 32px; border: 2px solid #d1d5db; border-top-color: transparent;
+             border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 16px; }
+  @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+<div style="text-align:center">
+  <div class="spinner"></div>
+  <p>Signing you in&hellip;</p>
+</div>
+<script>
+// Extract the JWT from the URL (?token=... or ?auth_token=...)
+var params = new URLSearchParams(window.location.search);
+var token = params.get("token") || params.get("auth_token");
+
+if (token) {
+  // Store in localStorage for the main app to pick up
+  try {
+    localStorage.setItem("burnchat_pending_token", token);
+  } catch (e) { /* storage blocked */ }
+
+  // If opened as a popup, notify parent and close
+  if (window.opener) {
+    try {
+      window.opener.postMessage({ type: "burnchat_auth_token", token: token }, "*");
+    } catch (e) {}
+    setTimeout(function () { window.close(); }, 400);
+  } else {
+    // Navigate to the main app
+    window.location.replace("/");
+  }
+} else {
+  // No token — just go home
+  window.location.replace("/");
+}
+</script>
+</body>
+</html>
