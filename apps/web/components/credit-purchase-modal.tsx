@@ -148,7 +148,7 @@ export default function CreditPurchaseModal() {
         useSessionStore.getState().setAuth(jwt, user.user_id, user.email, user.credit_balance);
       })
       .catch(() => {
-        window.location.href = "/api/auth/google";
+        // All flows failed — popup was likely blocked
       });
   };
 

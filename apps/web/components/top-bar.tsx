@@ -27,8 +27,7 @@ export default function TopBar() {
         setAuth(jwt, user.user_id, user.email, user.credit_balance);
       })
       .catch(() => {
-        // Fallback: redirect-based flow
-        window.location.href = "/api/auth/google";
+        // All flows failed — popup was likely blocked
       });
   };
 
