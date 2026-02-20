@@ -218,6 +218,16 @@ class ApiClient {
     return "/api/auth/google";
   }
 
+  async verifyGoogleToken(credential: string) {
+    const res = await safeFetch("/api/auth/google-token", {
+      method: "POST",
+      headers: this.getHeaders(),
+      body: JSON.stringify({ credential }),
+    });
+    if (!res.ok) throw new Error(await res.text());
+    return res.json();
+  }
+
   async getCreditBalance(token: string) {
     const res = await safeFetch("/api/credits/balance", {
       headers: this.getHeaders(token),

@@ -3,7 +3,7 @@
 import React from "react";
 import { useSessionStore } from "@/store/session-store";
 import { useUIStore } from "@/store/ui-store";
-import { getGoogleAuthUrl } from "@/lib/auth";
+import { signInWithGoogle } from "@/lib/auth";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { LogIn, CreditCard } from "lucide-react";
@@ -11,13 +11,19 @@ import { LogIn, CreditCard } from "lucide-react";
 export default function LoginPrompt() {
   const token = useSessionStore((s) => s.token);
   const email = useSessionStore((s) => s.email);
+  const setAuth = useSessionStore((s) => s.setAuth);
   const setShowCreditModal = useUIStore((s) => s.setShowCreditModal);
 
   const isSignedIn = !!token && !!email;
 
   const handleGoogleSignIn = () => {
-    const authUrl = getGoogleAuthUrl();
-    window.location.href = authUrl;
+    signInWithGoogle()
+      .then(({ token: jwt, user }) => {
+        setAuth(jwt, user.user_id, user.email, user.credit_balance);
+      })
+      .catch(() => {
+        window.location.href = "/api/auth/google";
+      });
   };
 
   const handleBuyCredits = () => {

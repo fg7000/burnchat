@@ -7,7 +7,7 @@ import { useSessionStore } from "@/store/session-store";
 import { useUIStore } from "@/store/ui-store";
 import { apiClient } from "@/lib/api-client";
 import { redirectToCheckout } from "@/lib/stripe";
-import { getGoogleAuthUrl } from "@/lib/auth";
+import { signInWithGoogle } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -143,7 +143,13 @@ export default function CreditPurchaseModal() {
   };
 
   const handleSignIn = () => {
-    window.location.href = getGoogleAuthUrl();
+    signInWithGoogle()
+      .then(({ token: jwt, user }) => {
+        useSessionStore.getState().setAuth(jwt, user.user_id, user.email, user.credit_balance);
+      })
+      .catch(() => {
+        window.location.href = "/api/auth/google";
+      });
   };
 
   const handleOpenChange = (open: boolean) => {

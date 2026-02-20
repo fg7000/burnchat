@@ -183,6 +183,80 @@ window.location.replace('/app');
     return HTMLResponse(content=html)
 
 
+@router.post("/auth/google-token")
+async def google_token_login(request: Request):
+    """Client-side Google Sign-In: verify a Google ID token and return a JWT.
+
+    This avoids the redirect-based OAuth flow which breaks behind web-IDE proxies.
+    The frontend uses Google Identity Services to get a credential (ID token)
+    and POSTs it here.
+    """
+    body = await request.json()
+    credential = body.get("credential")
+    if not credential:
+        raise HTTPException(status_code=400, detail="Missing credential")
+
+    # Verify the Google ID token via Google's tokeninfo endpoint
+    async with httpx.AsyncClient() as client:
+        resp = await client.get(
+            f"https://oauth2.googleapis.com/tokeninfo?id_token={credential}"
+        )
+
+    if resp.status_code != 200:
+        raise HTTPException(status_code=401, detail="Invalid Google credential")
+
+    info = resp.json()
+
+    # Verify the token was issued for our app
+    if info.get("aud") != GOOGLE_CLIENT_ID:
+        raise HTTPException(status_code=401, detail="Token audience mismatch")
+
+    google_id = info.get("sub")
+    email = info.get("email")
+    if not google_id or not email:
+        raise HTTPException(status_code=401, detail="Missing user info in token")
+
+    # Upsert user in Supabase (same logic as redirect flow)
+    db = get_supabase()
+    existing = (
+        db.table("users")
+        .select("id, email, credit_balance")
+        .eq("google_id", google_id)
+        .execute()
+    )
+
+    if existing.data and len(existing.data) > 0:
+        user = existing.data[0]
+        user_id = user["id"]
+    else:
+        insert_result = (
+            db.table("users")
+            .insert(
+                {
+                    "google_id": google_id,
+                    "email": email,
+                    "credit_balance": NEW_USER_BONUS_CREDITS,
+                }
+            )
+            .execute()
+        )
+        user = insert_result.data[0]
+        user_id = user["id"]
+
+        db.table("credit_transactions").insert(
+            {
+                "user_id": user_id,
+                "type": "bonus",
+                "amount": NEW_USER_BONUS_CREDITS,
+                "description": "Welcome bonus credits",
+                "balance_after": NEW_USER_BONUS_CREDITS,
+            }
+        ).execute()
+
+    token = _issue_jwt(user_id, email)
+    return {"token": token}
+
+
 @router.get("/auth/me")
 async def get_me(user: dict = Depends(get_current_user)):
     """Return the current authenticated user's info including credit balance."""

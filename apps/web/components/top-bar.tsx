@@ -3,7 +3,7 @@
 import { Shield, LogIn, User } from "lucide-react";
 import { useSessionStore } from "@/store/session-store";
 import { useUIStore } from "@/store/ui-store";
-import { getGoogleAuthUrl } from "@/lib/auth";
+import { signInWithGoogle } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import ModelSelector from "@/components/model-selector";
 import CreditDisplay from "@/components/credit-display";
@@ -16,13 +16,20 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 export default function TopBar() {
-  const { email, token, creditBalance, clearAuth } = useSessionStore();
+  const { email, token, creditBalance, clearAuth, setAuth } = useSessionStore();
   const { setShowCreditModal } = useUIStore();
 
   const isSignedIn = !!token && !!email;
 
   const handleSignIn = () => {
-    window.location.href = getGoogleAuthUrl();
+    signInWithGoogle()
+      .then(({ token: jwt, user }) => {
+        setAuth(jwt, user.user_id, user.email, user.credit_balance);
+      })
+      .catch(() => {
+        // Fallback: redirect-based flow
+        window.location.href = "/api/auth/google";
+      });
   };
 
   const handleSignOut = () => {
