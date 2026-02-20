@@ -29,26 +29,25 @@ async def process_documents(
 ):
     """Anonymize, chunk, embed, and store documents in pgvector.
 
-    If no ``session_id`` is provided a new session is created (requires auth).
+    If no ``session_id`` is provided a new session is created.  Authenticated
+    users get the session linked to their account; anonymous users get an
+    unlinked session.
     """
     db = get_supabase()
     session_id = request.session_id
 
-    # If no session_id, create a new session (requires auth)
+    # If no session_id, create a new session
     if not session_id:
-        if not user:
-            raise HTTPException(
-                status_code=401,
-                detail="Authentication required to create a new session",
-            )
+        row_data: dict = {
+            "name": "Untitled Session",
+            "mapping_encrypted": "",
+        }
+        if user:
+            row_data["user_id"] = user["user_id"]
 
         session_row = (
             db.table("sessions")
-            .insert({
-                "user_id": user["user_id"],
-                "name": "Untitled Session",
-                "mapping_encrypted": "",
-            })
+            .insert(row_data)
             .execute()
         )
 
