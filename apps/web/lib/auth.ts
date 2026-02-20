@@ -3,23 +3,21 @@ import { apiClient } from "./api-client";
 const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || "";
 
 /**
- * Sign in with Google using a popup window.
+ * Sign in with Google.
  *
- * Opens /api/auth/google in a popup. The server redirects to Google, the user
- * authenticates, and eventually the popup lands on a URL with `token=` or
- * `auth_token=` in the query string.  We poll the popup's URL until we see the
- * token, then extract it — even if the popup page itself 404s.
- *
- * Falls back to GIS One Tap if available, but the popup approach is the
- * primary flow because it works behind web-IDE proxies / tunnels where
- * server-side redirects may be cached.
+ * Tries multiple strategies in order:
+ * 1. GIS One Tap (client-side, no page navigation)
+ * 2. Popup-based OAuth redirect (opens /api/auth/google in a popup)
+ * 3. Full-page redirect (last resort — registers service worker first to
+ *    intercept the /auth/callback route on return)
  */
 export function signInWithGoogle(): Promise<{
   token: string;
   user: { user_id: string; email: string; credit_balance: number };
 }> {
-  // Try GIS (Google Identity Services) first — purely client-side, no redirects.
-  return tryGIS().catch(() => signInWithPopup());
+  return tryGIS()
+    .catch(() => signInWithPopup())
+    .catch(() => signInWithRedirect());
 }
 
 /** GIS One Tap / popup flow (client-side only, no page navigation). */
@@ -138,6 +136,47 @@ function signInWithPopup(): Promise<{
         // Cross-origin error — popup is still on Google's domain, keep polling
       }
     }, 500);
+  });
+}
+
+/**
+ * Last-resort: full-page redirect to /api/auth/google.
+ *
+ * Before navigating away, registers the service worker (if supported)
+ * so it's active when the browser returns to /auth/callback?token=JWT.
+ * The SW intercepts the callback request and returns a page that
+ * stores the token and redirects to /.
+ */
+function signInWithRedirect(): Promise<never> {
+  return new Promise(async (_resolve, reject) => {
+    try {
+      // Ensure SW is registered and active before navigating away
+      if ("serviceWorker" in navigator) {
+        const reg = await navigator.serviceWorker.register("/sw.js");
+        // Wait for the SW to be active
+        if (reg.installing || reg.waiting) {
+          await new Promise<void>((resolve) => {
+            const sw = reg.installing || reg.waiting;
+            if (!sw) { resolve(); return; }
+            sw.addEventListener("statechange", () => {
+              if (sw.state === "activated") resolve();
+            });
+            // Timeout after 3 seconds — don't block forever
+            setTimeout(resolve, 3000);
+          });
+        }
+      }
+    } catch {
+      // SW registration failed — proceed anyway, the trailingSlash fix
+      // or not-found.tsx safety net should handle the callback
+    }
+
+    // Navigate the main page to the OAuth endpoint
+    window.location.href = "/api/auth/google";
+
+    // This promise never resolves — the page navigates away
+    // If somehow the navigation fails, reject after a timeout
+    setTimeout(() => reject(new Error("Redirect failed")), 5000);
   });
 }
 
