@@ -6,7 +6,7 @@ from urllib.parse import urlencode
 import httpx
 import jwt
 from fastapi import APIRouter, Depends, HTTPException, Request
-from fastapi.responses import RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 
 from database import get_supabase
 from middleware.auth import get_current_user
@@ -168,9 +168,19 @@ async def google_callback(request: Request, code: Optional[str] = None, error: O
             }
         ).execute()
 
-    # Issue JWT and redirect to frontend
+    # Issue JWT and hand off to the frontend.
+    # Return an inline HTML page that stores the token in localStorage and
+    # redirects client-side.  This avoids a server redirect to /auth/callback
+    # which can 404 behind web-IDE proxies / tunnels.
     token = _issue_jwt(user_id, email)
-    return RedirectResponse(url=f"{frontend_base}/auth/callback?token={token}")
+    html = f"""<!DOCTYPE html><html><head><title>Signing you in…</title></head>
+<body style="background:#030712;color:#9ca3af;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;font-family:sans-serif">
+<p>Signing you in…</p>
+<script>
+try {{ localStorage.setItem('pending_auth_token', '{token}'); }} catch(e) {{}}
+window.location.replace('/app');
+</script></body></html>"""
+    return HTMLResponse(content=html)
 
 
 @router.get("/auth/me")

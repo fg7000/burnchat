@@ -12,8 +12,22 @@ import CreditPurchaseModal from "@/components/credit-purchase-modal";
 import SessionListModal from "@/components/session-list-modal";
 
 export default function Home() {
-  const { token, sessionMode, setCreditBalance } = useSessionStore();
+  const { token, sessionMode, setCreditBalance, setAuth } = useSessionStore();
   const { showSessionSidebar, setShowCreditModal } = useUIStore();
+
+  // Pick up a pending auth token left by the OAuth callback page
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const pending = localStorage.getItem("pending_auth_token");
+    if (!pending) return;
+    localStorage.removeItem("pending_auth_token");
+    apiClient
+      .getMe(pending)
+      .then((user) => {
+        setAuth(pending, user.user_id, user.email, user.credit_balance);
+      })
+      .catch(() => {});
+  }, [setAuth]);
 
   // Check for payment success/cancel in URL params
   useEffect(() => {
