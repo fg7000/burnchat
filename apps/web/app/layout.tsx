@@ -27,34 +27,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="dark">
-      <head>
-        {/* Intercept fetch/XHR to rewrite any stale localhost:8000 URLs to relative paths.
-            This fixes cached JS that may still reference the old direct backend URL. */}
-        <script dangerouslySetInnerHTML={{ __html: `
-          (function() {
-            console.log('[BURNCHAT v2] Fetch interceptor active');
-            var oldFetch = window.fetch;
-            window.fetch = function(input, init) {
-              if (typeof input === 'string' && input.indexOf('http://localhost:8000') === 0) {
-                console.log('[BURNCHAT] Intercepted: ' + input + ' -> ' + input.replace('http://localhost:8000', ''));
-                input = input.replace('http://localhost:8000', '');
-              } else if (input instanceof Request && input.url.indexOf('http://localhost:8000') === 0) {
-                console.log('[BURNCHAT] Intercepted Request: ' + input.url);
-                input = new Request(input.url.replace('http://localhost:8000', ''), input);
-              }
-              return oldFetch.call(this, input, init);
-            };
-            var oldOpen = XMLHttpRequest.prototype.open;
-            XMLHttpRequest.prototype.open = function(method, url) {
-              if (typeof url === 'string' && url.indexOf('http://localhost:8000') === 0) {
-                console.log('[BURNCHAT] Intercepted XHR: ' + url);
-                arguments[1] = url.replace('http://localhost:8000', '');
-              }
-              return oldOpen.apply(this, arguments);
-            };
-          })();
-        `}} />
-      </head>
+      <head />
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-gray-950 text-gray-100 min-h-screen`}
       >
