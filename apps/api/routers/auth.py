@@ -16,7 +16,7 @@ router = APIRouter(tags=["auth"])
 GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "")
 GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET", "")
 JWT_SECRET = os.getenv("JWT_SECRET", "")
-FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3001")
+FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
 JWT_ALGORITHM = "HS256"
 JWT_EXPIRATION_HOURS = 24
 

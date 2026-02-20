@@ -1,10 +1,11 @@
 import os
 from contextlib import asynccontextmanager
 from pathlib import Path
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, Response
+from starlette.middleware.base import BaseHTTPMiddleware
 from dotenv import load_dotenv
 
 _env_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env")
@@ -25,6 +26,18 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="BurnChat API", version="1.0.0", lifespan=lifespan)
 
+
+class NoCacheMiddleware(BaseHTTPMiddleware):
+    """Force no-cache on every response to prevent stale JS in proxy/browser."""
+    async def dispatch(self, request: Request, call_next):
+        response = await call_next(request)
+        response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
+        return response
+
+
+app.add_middleware(NoCacheMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
