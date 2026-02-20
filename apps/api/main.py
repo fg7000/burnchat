@@ -106,8 +106,34 @@ if FRONTEND_DIR.is_dir():
         return _html_response(FRONTEND_DIR / "index.html")
 
     @app.get("/auth/callback")
-    async def auth_callback_page():
-        return _html_response(FRONTEND_DIR / "auth" / "callback.html")
+    async def auth_callback_page(token: str = None, auth_token: str = None):
+        """Handle OAuth callback — store token in localStorage and redirect to /app."""
+        t = token or auth_token
+        if t:
+            import json as _json
+            html = (
+                '<!DOCTYPE html><html><head><meta charset="utf-8">'
+                "<title>Signing in\u2026</title></head>"
+                '<body style="background:#030712;color:#9ca3af;display:flex;'
+                "align-items:center;justify-content:center;height:100vh;margin:0;"
+                'font-family:sans-serif"><p>Signing you in\u2026</p>'
+                "<script>"
+                'try{localStorage.setItem("burnchat_pending_token",'
+                + _json.dumps(t)
+                + ")}catch(e){}"
+                'window.location.replace("/app")'
+                "</script></body></html>"
+            )
+            from fastapi.responses import HTMLResponse
+            return HTMLResponse(content=html)
+        # No token — try serving the callback page
+        for candidate in [
+            FRONTEND_DIR / "auth" / "callback" / "index.html",
+            FRONTEND_DIR / "auth" / "callback.html",
+        ]:
+            if candidate.is_file():
+                return _html_response(candidate)
+        return _html_response(FRONTEND_DIR / "index.html")
 
     @app.get("/privacy")
     async def privacy_page():
