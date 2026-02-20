@@ -15,12 +15,24 @@ export default function Home() {
   const { token, sessionMode, setCreditBalance, setAuth } = useSessionStore();
   const { showSessionSidebar, setShowCreditModal } = useUIStore();
 
-  // Pick up a pending auth token left by the OAuth callback page
+  // Pick up a pending auth token from URL params (OAuth redirect) or localStorage
   useEffect(() => {
     if (typeof window === "undefined") return;
-    const pending = localStorage.getItem("pending_auth_token");
+
+    const params = new URLSearchParams(window.location.search);
+    const urlToken = params.get("auth_token");
+    const pending = urlToken || localStorage.getItem("pending_auth_token");
+
     if (!pending) return;
+
+    // Clean up: remove from localStorage and strip token from URL
     localStorage.removeItem("pending_auth_token");
+    if (urlToken) {
+      params.delete("auth_token");
+      const clean = params.toString();
+      window.history.replaceState({}, "", clean ? `/app?${clean}` : "/app");
+    }
+
     apiClient
       .getMe(pending)
       .then((user) => {
