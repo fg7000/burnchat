@@ -55,6 +55,17 @@ if FRONTEND_DIR.is_dir():
     if _next_dir.is_dir():
         app.mount("/_next", StaticFiles(directory=str(_next_dir)), name="next-static")
 
+    # Redirect root to the app entry point (bypasses stale proxy cache on /)
+    @app.get("/")
+    async def root_redirect():
+        from fastapi.responses import RedirectResponse
+        return RedirectResponse(url="/app")
+
+    # Main app entry point at /app (fresh path, no proxy cache)
+    @app.get("/app")
+    async def app_page():
+        return FileResponse(str(FRONTEND_DIR / "index.html"))
+
     # Serve known page routes as their HTML files
     @app.get("/auth/callback")
     async def auth_callback_page():
