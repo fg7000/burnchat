@@ -28,17 +28,20 @@ GOOGLE_SCOPES = "email profile openid"
 NEW_USER_BONUS_CREDITS = 50
 
 
-def _build_redirect_uri(request: Request) -> str:
-    """Build the OAuth callback URI based on the incoming request host."""
+def _build_base_url(request: Request) -> str:
+    """Derive the public base URL from the incoming request headers."""
     scheme = request.headers.get("x-forwarded-proto", request.url.scheme)
     host = request.headers.get("x-forwarded-host", request.url.hostname)
     port = request.url.port
     # Include port only for local development (non-standard ports)
     if port and port not in (80, 443):
-        base = f"{scheme}://{host}:{port}"
-    else:
-        base = f"{scheme}://{host}"
-    return f"{base}/api/auth/callback"
+        return f"{scheme}://{host}:{port}"
+    return f"{scheme}://{host}"
+
+
+def _build_redirect_uri(request: Request) -> str:
+    """Build the OAuth callback URI based on the incoming request host."""
+    return f"{_build_base_url(request)}/api/auth/callback"
 
 
 def _issue_jwt(user_id: str, email: str) -> str:
@@ -76,11 +79,14 @@ async def google_callback(request: Request, code: Optional[str] = None, error: O
     Exchanges the authorization code for tokens, fetches user info,
     upserts the user in Supabase, and redirects to the frontend with a JWT.
     """
+    # Derive frontend URL from the request so it works behind tunnels/proxies
+    frontend_base = _build_base_url(request)
+
     if error:
-        return RedirectResponse(url=f"{FRONTEND_URL}/auth/callback?error={error}")
+        return RedirectResponse(url=f"{frontend_base}/auth/callback?error={error}")
 
     if not code:
-        return RedirectResponse(url=f"{FRONTEND_URL}/auth/callback?error=missing_code")
+        return RedirectResponse(url=f"{frontend_base}/auth/callback?error=missing_code")
 
     redirect_uri = _build_redirect_uri(request)
 
@@ -98,12 +104,12 @@ async def google_callback(request: Request, code: Optional[str] = None, error: O
         )
 
     if token_response.status_code != 200:
-        return RedirectResponse(url=f"{FRONTEND_URL}/auth/callback?error=token_exchange_failed")
+        return RedirectResponse(url=f"{frontend_base}/auth/callback?error=token_exchange_failed")
 
     tokens = token_response.json()
     access_token = tokens.get("access_token")
     if not access_token:
-        return RedirectResponse(url=f"{FRONTEND_URL}/auth/callback?error=no_access_token")
+        return RedirectResponse(url=f"{frontend_base}/auth/callback?error=no_access_token")
 
     # Fetch user info from Google
     async with httpx.AsyncClient() as client:
@@ -113,14 +119,14 @@ async def google_callback(request: Request, code: Optional[str] = None, error: O
         )
 
     if userinfo_response.status_code != 200:
-        return RedirectResponse(url=f"{FRONTEND_URL}/auth/callback?error=userinfo_failed")
+        return RedirectResponse(url=f"{frontend_base}/auth/callback?error=userinfo_failed")
 
     google_user = userinfo_response.json()
     google_id = google_user.get("id")
     email = google_user.get("email")
 
     if not google_id or not email:
-        return RedirectResponse(url=f"{FRONTEND_URL}/auth/callback?error=invalid_user_data")
+        return RedirectResponse(url=f"{frontend_base}/auth/callback?error=invalid_user_data")
 
     # Create or find user in Supabase
     db = get_supabase()
@@ -164,7 +170,7 @@ async def google_callback(request: Request, code: Optional[str] = None, error: O
 
     # Issue JWT and redirect to frontend
     token = _issue_jwt(user_id, email)
-    return RedirectResponse(url=f"{FRONTEND_URL}/auth/callback?token={token}")
+    return RedirectResponse(url=f"{frontend_base}/auth/callback?token={token}")
 
 
 @router.get("/auth/me")
