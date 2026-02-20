@@ -29,6 +29,12 @@ export default function RootLayout({
     <html lang="en" className="dark">
       <head>
         <script src="https://accounts.google.com/gsi/client" async defer></script>
+        {/* Register service worker to intercept /auth/callback (which 404s on the static server) */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `if("serviceWorker"in navigator){navigator.serviceWorker.register("/sw.js").catch(function(){})}`,
+          }}
+        />
       </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-gray-950 text-gray-100 min-h-screen`}
