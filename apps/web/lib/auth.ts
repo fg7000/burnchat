@@ -36,26 +36,71 @@ declare const google: { accounts: GoogleAccounts } | undefined;
 /* ------------------------------------------------------------------ */
 
 /**
+ * Wait for the Google Identity Services library to load.
+ * The <script src="https://accounts.google.com/gsi/client" async defer>
+ * tag in layout.tsx may not have finished loading by the time the user
+ * clicks "Sign In". This polls until `google.accounts.oauth2` is available.
+ */
+function waitForGIS(timeoutMs = 5000): Promise<void> {
+  return new Promise((resolve, reject) => {
+    // Already loaded
+    if (typeof google !== "undefined" && google?.accounts?.oauth2) {
+      resolve();
+      return;
+    }
+
+    const start = Date.now();
+    const interval = setInterval(() => {
+      if (typeof google !== "undefined" && google?.accounts?.oauth2) {
+        clearInterval(interval);
+        resolve();
+        return;
+      }
+      if (Date.now() - start > timeoutMs) {
+        clearInterval(interval);
+        reject(new Error(
+          "Google sign-in library failed to load. Check your internet connection or try disabling ad blockers."
+        ));
+      }
+    }, 100);
+  });
+}
+
+/**
  * Sign in with Google.
  *
- * Primary strategy: use google.accounts.oauth2.initCodeClient() which opens
- * a Google-managed popup (NOT window.open — not blocked by popup blockers).
- * The authorization code is sent to our backend via a POST API call.
+ * Uses google.accounts.oauth2.initCodeClient() which opens a Google-managed
+ * popup (NOT window.open — not blocked by popup blockers). The authorization
+ * code is sent to our backend via a POST API call.
+ *
  * No server-side redirects. No callback URLs. No 404s.
  *
- * Fallbacks (if GIS library not loaded):
- *   2. GIS One Tap (google.accounts.id.prompt)
- *   3. window.open popup with URL polling
- *   4. Full-page redirect (last resort)
+ * IMPORTANT: We deliberately do NOT fall back to redirect-based OAuth flows
+ * (signInWithPopup / signInWithRedirect). This environment uses a proxy that
+ * aggressively caches responses, including 404s and redirects. Redirect-based
+ * flows always fail because the proxy serves stale cached responses.
  */
 export function signInWithGoogle(): Promise<{
   token: string;
   user: { user_id: string; email: string; credit_balance: number };
 }> {
-  return tryGISCodeClient()
-    .catch(() => tryGISOneTap())
-    .catch(() => signInWithPopup())
-    .catch(() => signInWithRedirect());
+  if (!GOOGLE_CLIENT_ID) {
+    return Promise.reject(new Error("Google Client ID is not configured"));
+  }
+
+  // Wait for GIS library, then try code client, then try one-tap
+  return waitForGIS()
+    .then(() => tryGISCodeClient())
+    .catch((codeErr) => {
+      console.warn("[auth] GIS Code Client failed:", codeErr.message);
+      return tryGISOneTap().catch((tapErr) => {
+        console.warn("[auth] GIS One Tap failed:", tapErr.message);
+        // Both GIS methods failed — throw a user-friendly error
+        throw new Error(
+          "Google sign-in failed. Please allow popups for this site and try again."
+        );
+      });
+    });
 }
 
 /**
@@ -75,17 +120,22 @@ function tryGISCodeClient(): Promise<{
       return;
     }
 
+    console.log("[auth] Starting GIS Code Client flow");
+
     const client = google.accounts.oauth2.initCodeClient({
       client_id: GOOGLE_CLIENT_ID,
       scope: "email profile openid",
       ux_mode: "popup",
       callback: async (response) => {
         if (response.error || !response.code) {
+          console.error("[auth] GIS callback error:", response.error);
           reject(new Error(response.error || "No authorization code received"));
           return;
         }
         try {
+          console.log("[auth] Got auth code, exchanging with backend...");
           const data = await apiClient.exchangeGoogleCode(response.code);
+          console.log("[auth] Code exchange successful");
           resolve({
             token: data.token,
             user: {
@@ -95,10 +145,12 @@ function tryGISCodeClient(): Promise<{
             },
           });
         } catch (err) {
+          console.error("[auth] Code exchange failed:", err);
           reject(err);
         }
       },
       error_callback: (error) => {
+        console.error("[auth] GIS error_callback:", error);
         reject(new Error(error?.message || "GIS OAuth2 error"));
       },
     });
@@ -117,6 +169,8 @@ function tryGISOneTap(): Promise<{
       reject(new Error("GIS not available"));
       return;
     }
+
+    console.log("[auth] Starting GIS One Tap flow");
 
     google.accounts.id.initialize({
       client_id: GOOGLE_CLIENT_ID,
@@ -137,74 +191,6 @@ function tryGISOneTap(): Promise<{
         reject(new Error("GIS prompt blocked"));
       }
     });
-  });
-}
-
-/**
- * Popup-based OAuth redirect flow.
- * Opens /api/auth/google in a popup and polls the URL for the token.
- */
-function signInWithPopup(): Promise<{
-  token: string;
-  user: { user_id: string; email: string; credit_balance: number };
-}> {
-  return new Promise((resolve, reject) => {
-    const width = 500;
-    const height = 600;
-    const left = window.screenX + (window.outerWidth - width) / 2;
-    const top = window.screenY + (window.outerHeight - height) / 2;
-
-    const popup = window.open(
-      "/api/auth/google",
-      "google-auth",
-      `width=${width},height=${height},left=${left},top=${top},popup=yes`
-    );
-
-    if (!popup) {
-      reject(new Error("Popup blocked"));
-      return;
-    }
-
-    const timeout = setTimeout(() => {
-      clearInterval(interval);
-      try { popup.close(); } catch { /* ignore */ }
-      reject(new Error("Auth timeout"));
-    }, 120_000);
-
-    const interval = setInterval(() => {
-      try {
-        if (popup.closed) {
-          clearInterval(interval);
-          clearTimeout(timeout);
-          reject(new Error("Popup closed"));
-          return;
-        }
-        const url = popup.location.href;
-        const match = url.match(/[?&](?:auth_)?token=([^&]+)/);
-        if (match) {
-          clearInterval(interval);
-          clearTimeout(timeout);
-          popup.close();
-          const jwt = decodeURIComponent(match[1]);
-          apiClient
-            .getMe(jwt)
-            .then((user) => resolve({ token: jwt, user }))
-            .catch((err) => reject(err));
-        }
-      } catch {
-        // Cross-origin error — popup is still on Google's domain
-      }
-    }, 500);
-  });
-}
-
-/**
- * Last-resort: full-page redirect to /api/auth/google.
- */
-function signInWithRedirect(): Promise<never> {
-  return new Promise((_resolve, reject) => {
-    window.location.href = "/api/auth/google";
-    setTimeout(() => reject(new Error("Redirect failed")), 5000);
   });
 }
 

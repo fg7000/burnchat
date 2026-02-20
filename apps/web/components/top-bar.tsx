@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { Shield, LogIn, User } from "lucide-react";
 import { useSessionStore } from "@/store/session-store";
 import { useUIStore } from "@/store/ui-store";
@@ -18,17 +19,23 @@ import {
 export default function TopBar() {
   const { email, token, creditBalance, clearAuth, setAuth } = useSessionStore();
   const { setShowCreditModal } = useUIStore();
+  const [signingIn, setSigningIn] = useState(false);
+  const [signInError, setSignInError] = useState<string | null>(null);
 
   const isSignedIn = !!token && !!email;
 
   const handleSignIn = () => {
+    setSigningIn(true);
+    setSignInError(null);
     signInWithGoogle()
       .then(({ token: jwt, user }) => {
         setAuth(jwt, user.user_id, user.email, user.credit_balance);
       })
-      .catch(() => {
-        // All flows failed — popup was likely blocked
-      });
+      .catch((err) => {
+        console.error("[auth] Sign-in failed:", err);
+        setSignInError(err.message || "Sign-in failed");
+      })
+      .finally(() => setSigningIn(false));
   };
 
   const handleSignOut = () => {
@@ -85,15 +92,23 @@ export default function TopBar() {
               </DropdownMenuContent>
             </DropdownMenu>
           ) : (
-            <Button
-              variant="default"
-              size="sm"
-              onClick={handleSignIn}
-              className="gap-1.5"
-            >
-              <LogIn className="h-4 w-4" />
-              Sign in with Google
-            </Button>
+            <div className="flex items-center gap-2">
+              {signInError && (
+                <span className="text-xs text-red-400 max-w-[200px] truncate" title={signInError}>
+                  {signInError}
+                </span>
+              )}
+              <Button
+                variant="default"
+                size="sm"
+                onClick={handleSignIn}
+                disabled={signingIn}
+                className="gap-1.5"
+              >
+                <LogIn className="h-4 w-4" />
+                {signingIn ? "Signing in..." : "Sign in with Google"}
+              </Button>
+            </div>
           )}
         </div>
       </div>
