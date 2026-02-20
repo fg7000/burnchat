@@ -173,46 +173,12 @@ async def google_callback(request: Request, code: Optional[str] = None, error: O
             }
         ).execute()
 
-    # Issue JWT and return a self-contained HTML page.
-    # We do NOT redirect because proxy/tunnel environments may cache or
-    # misroute 302 responses.  Instead the page stores the auth data in
-    # localStorage and navigates to "/" via JavaScript, which the main app
-    # picks up on mount.
+    # Issue JWT and redirect to the main page with token in URL.
+    # The main page reads ?token= from the URL, calls /api/auth/me,
+    # and sets auth state. Simple redirect is more reliable than
+    # HTMLResponse which can be broken by client-side routing.
     token = _issue_jwt(user_id, email)
-    credit_balance = user.get("credit_balance", NEW_USER_BONUS_CREDITS)
-
-    html = f"""<!DOCTYPE html>
-<html><head><meta charset="utf-8"><title>Signing in…</title></head>
-<body style="background:#030712;color:#9ca3af;display:flex;align-items:center;
-justify-content:center;height:100vh;margin:0;font-family:sans-serif">
-<div style="text-align:center">
-<div style="width:32px;height:32px;border:2px solid #d1d5db;border-top-color:transparent;
-border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 16px"></div>
-<p>Signing you in…</p>
-</div>
-<style>@keyframes spin{{from{{transform:rotate(0)}}to{{transform:rotate(360deg)}} }}</style>
-<script>
-try {{
-  var auth = {{
-    token: {json_module.dumps(token)},
-    user_id: {json_module.dumps(user_id)},
-    email: {json_module.dumps(email)},
-    credit_balance: {json_module.dumps(credit_balance)}
-  }};
-  localStorage.setItem("burnchat_auth", JSON.stringify(auth));
-}} catch(e) {{}}
-// If inside a popup opened by the main app, notify and close
-if (window.opener) {{
-  try {{
-    window.opener.postMessage({{ type: "burnchat_auth", auth: auth }}, "*");
-  }} catch(e) {{}}
-  setTimeout(function() {{ window.close(); }}, 300);
-}} else {{
-  window.location.replace("/");
-}}
-</script>
-</body></html>"""
-    return HTMLResponse(content=html)
+    return RedirectResponse(url=f"/?token={token}")
 
 
 @router.post("/auth/google-code")
