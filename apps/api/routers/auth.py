@@ -118,6 +118,8 @@ function waitForGIS(timeout) {{
 waitForGIS(8000).then(function() {{
   document.getElementById('btn').disabled = false;
   document.getElementById('btn').textContent = 'Sign in with Google';
+  // Auto-start sign-in immediately (user already clicked "Sign In" on main page)
+  startSignIn();
 }}).catch(function(err) {{
   document.getElementById('status').className = 'status error';
   document.getElementById('status').textContent = err.message;
