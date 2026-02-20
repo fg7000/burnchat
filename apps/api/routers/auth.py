@@ -77,16 +77,23 @@ async def google_callback(request: Request, code: Optional[str] = None, error: O
     """Handle Google's OAuth callback.
 
     Exchanges the authorization code for tokens, fetches user info,
-    upserts the user in Supabase, and redirects to the frontend with a JWT.
+    upserts the user in Supabase, and returns an inline HTML page that
+    stores the JWT in localStorage and redirects to /app.
     """
-    # Derive frontend URL from the request so it works behind tunnels/proxies
-    frontend_base = _build_base_url(request)
+
+    def _error_html(msg: str) -> HTMLResponse:
+        """Return an inline HTML error page that redirects to /app with the error."""
+        html = f"""<!DOCTYPE html><html><head><title>Sign-in error</title></head>
+<body style="background:#030712;color:#9ca3af;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;font-family:sans-serif">
+<p>Sign-in failed: {msg}. Redirecting…</p>
+<script>window.location.replace('/app');</script></body></html>"""
+        return HTMLResponse(content=html)
 
     if error:
-        return RedirectResponse(url=f"{frontend_base}/auth/callback?error={error}")
+        return _error_html(error)
 
     if not code:
-        return RedirectResponse(url=f"{frontend_base}/auth/callback?error=missing_code")
+        return _error_html("missing_code")
 
     redirect_uri = _build_redirect_uri(request)
 
@@ -104,12 +111,12 @@ async def google_callback(request: Request, code: Optional[str] = None, error: O
         )
 
     if token_response.status_code != 200:
-        return RedirectResponse(url=f"{frontend_base}/auth/callback?error=token_exchange_failed")
+        return _error_html("token_exchange_failed")
 
     tokens = token_response.json()
     access_token = tokens.get("access_token")
     if not access_token:
-        return RedirectResponse(url=f"{frontend_base}/auth/callback?error=no_access_token")
+        return _error_html("no_access_token")
 
     # Fetch user info from Google
     async with httpx.AsyncClient() as client:
@@ -119,14 +126,14 @@ async def google_callback(request: Request, code: Optional[str] = None, error: O
         )
 
     if userinfo_response.status_code != 200:
-        return RedirectResponse(url=f"{frontend_base}/auth/callback?error=userinfo_failed")
+        return _error_html("userinfo_failed")
 
     google_user = userinfo_response.json()
     google_id = google_user.get("id")
     email = google_user.get("email")
 
     if not google_id or not email:
-        return RedirectResponse(url=f"{frontend_base}/auth/callback?error=invalid_user_data")
+        return _error_html("invalid_user_data")
 
     # Create or find user in Supabase
     db = get_supabase()
