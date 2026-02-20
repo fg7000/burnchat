@@ -1,5 +1,6 @@
 import os
 from contextlib import asynccontextmanager
+from datetime import datetime, timezone
 from pathlib import Path
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -17,6 +18,8 @@ from database import init_database
 # Path to the Next.js static export
 FRONTEND_DIR = Path(__file__).resolve().parent.parent / "web" / "out"
 
+_REQ_LOG = Path("/tmp/requests.log")
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -25,6 +28,21 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="BurnChat API", version="1.0.0", lifespan=lifespan)
+
+
+class RequestLogMiddleware(BaseHTTPMiddleware):
+    """Log every request to /tmp/requests.log for debugging."""
+    async def dispatch(self, request: Request, call_next):
+        ts = datetime.now(timezone.utc).isoformat()
+        line = f"[{ts}] {request.method} {request.url.path}?{request.url.query} from {request.client.host if request.client else '?'}\n"
+        with open(_REQ_LOG, "a") as f:
+            f.write(line)
+            f.flush()
+        response = await call_next(request)
+        with open(_REQ_LOG, "a") as f:
+            f.write(f"  -> {response.status_code}\n")
+            f.flush()
+        return response
 
 
 class NoCacheMiddleware(BaseHTTPMiddleware):
@@ -37,6 +55,7 @@ class NoCacheMiddleware(BaseHTTPMiddleware):
         return response
 
 
+app.add_middleware(RequestLogMiddleware)
 app.add_middleware(NoCacheMiddleware)
 app.add_middleware(
     CORSMiddleware,
