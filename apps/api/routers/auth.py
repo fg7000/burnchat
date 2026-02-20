@@ -210,6 +210,100 @@ if (window.opener) {{
     return HTMLResponse(content=html)
 
 
+@router.post("/auth/google-code")
+async def google_code_login(request: Request):
+    """Client-side Google Sign-In via authorization code.
+
+    The frontend uses google.accounts.oauth2.initCodeClient() to get an
+    authorization code in a Google-managed popup (no redirects). The code
+    is POSTed here and exchanged for tokens using redirect_uri='postmessage'.
+    """
+    body = await request.json()
+    code = body.get("code")
+    if not code:
+        raise HTTPException(status_code=400, detail="Missing code")
+
+    # Exchange authorization code for tokens (redirect_uri='postmessage' for
+    # codes obtained via the JS library's popup flow)
+    async with httpx.AsyncClient() as client:
+        token_response = await client.post(
+            GOOGLE_TOKEN_URL,
+            data={
+                "client_id": GOOGLE_CLIENT_ID,
+                "client_secret": GOOGLE_CLIENT_SECRET,
+                "code": code,
+                "grant_type": "authorization_code",
+                "redirect_uri": "postmessage",
+            },
+        )
+
+    if token_response.status_code != 200:
+        raise HTTPException(status_code=401, detail="Token exchange failed")
+
+    tokens = token_response.json()
+    access_token = tokens.get("access_token")
+    if not access_token:
+        raise HTTPException(status_code=401, detail="No access token")
+
+    # Fetch user info from Google
+    async with httpx.AsyncClient() as client:
+        userinfo_response = await client.get(
+            GOOGLE_USERINFO_URL,
+            headers={"Authorization": f"Bearer {access_token}"},
+        )
+
+    if userinfo_response.status_code != 200:
+        raise HTTPException(status_code=401, detail="User info fetch failed")
+
+    google_user = userinfo_response.json()
+    google_id = google_user.get("id")
+    email = google_user.get("email")
+
+    if not google_id or not email:
+        raise HTTPException(status_code=401, detail="Invalid user data")
+
+    # Create or find user in Supabase
+    db = get_supabase()
+    existing = (
+        db.table("users")
+        .select("id, email, credit_balance")
+        .eq("google_id", google_id)
+        .execute()
+    )
+
+    if existing.data and len(existing.data) > 0:
+        user = existing.data[0]
+        user_id = user["id"]
+    else:
+        insert_result = (
+            db.table("users")
+            .insert(
+                {
+                    "google_id": google_id,
+                    "email": email,
+                    "credit_balance": NEW_USER_BONUS_CREDITS,
+                }
+            )
+            .execute()
+        )
+        user = insert_result.data[0]
+        user_id = user["id"]
+
+        db.table("credit_transactions").insert(
+            {
+                "user_id": user_id,
+                "type": "bonus",
+                "amount": NEW_USER_BONUS_CREDITS,
+                "description": "Welcome bonus credits",
+                "balance_after": NEW_USER_BONUS_CREDITS,
+            }
+        ).execute()
+
+    token = _issue_jwt(user_id, email)
+    credit_balance = user.get("credit_balance", NEW_USER_BONUS_CREDITS)
+    return {"token": token, "user_id": user_id, "email": email, "credit_balance": credit_balance}
+
+
 @router.post("/auth/google-token")
 async def google_token_login(request: Request):
     """Client-side Google Sign-In: verify a Google ID token and return a JWT.

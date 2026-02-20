@@ -218,6 +218,21 @@ class ApiClient {
     return "/api/auth/google";
   }
 
+  async exchangeGoogleCode(code: string) {
+    const res = await safeFetch("/api/auth/google-code", {
+      method: "POST",
+      headers: this.getHeaders(),
+      body: JSON.stringify({ code }),
+    });
+    if (!res.ok) throw new Error(await res.text());
+    return res.json() as Promise<{
+      token: string;
+      user_id: string;
+      email: string;
+      credit_balance: number;
+    }>;
+  }
+
   async verifyGoogleToken(credential: string) {
     const res = await safeFetch("/api/auth/google-token", {
       method: "POST",
