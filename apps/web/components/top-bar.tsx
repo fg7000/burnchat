@@ -25,17 +25,10 @@ export default function TopBar() {
   const isSignedIn = !!token && !!email;
 
   const handleSignIn = () => {
-    setSigningIn(true);
-    setSignInError(null);
-    signInWithGoogle()
-      .then(({ token: jwt, user }) => {
-        setAuth(jwt, user.user_id, user.email, user.credit_balance);
-      })
-      .catch((err) => {
-        console.error("[auth] Sign-in failed:", err);
-        setSignInError(err.message || "Sign-in failed");
-      })
-      .finally(() => setSigningIn(false));
+    // Navigate to a self-contained auth page served by the backend.
+    // This bypasses any proxy-cached frontend JS that might use old
+    // redirect-based OAuth. The backend page has GIS Code Client inline.
+    window.location.href = "/api/auth/signin-page";
   };
 
   const handleSignOut = () => {

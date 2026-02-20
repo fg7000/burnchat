@@ -360,6 +360,138 @@ async def google_token_login(request: Request):
     return {"token": token}
 
 
+@router.get("/auth/signin-page")
+async def signin_page(request: Request):
+    """Serve a self-contained HTML page that runs Google Sign-In.
+
+    This bypasses any proxy-cached frontend JS by embedding the auth logic
+    directly in the HTML response. Uses the GIS Code Client popup flow
+    (POST-based, no redirects). After successful auth, stores the JWT in
+    localStorage and redirects to /.
+    """
+    return HTMLResponse(content=f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Sign In — BurnChat</title>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<style>
+  body {{ background: #030712; color: #f3f4f6; font-family: system-ui, sans-serif; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; }}
+  .card {{ background: #111827; border: 1px solid #1f2937; border-radius: 12px; padding: 2rem; max-width: 400px; text-align: center; }}
+  h1 {{ font-size: 1.25rem; margin: 0 0 0.5rem; }}
+  p {{ color: #9ca3af; font-size: 0.875rem; margin: 0 0 1.5rem; }}
+  button {{ background: #fff; color: #000; border: none; border-radius: 8px; padding: 0.75rem 1.5rem; font-size: 0.875rem; font-weight: 600; cursor: pointer; width: 100%; }}
+  button:hover {{ background: #e5e7eb; }}
+  button:disabled {{ opacity: 0.5; cursor: wait; }}
+  .status {{ margin-top: 1rem; font-size: 0.8rem; color: #9ca3af; }}
+  .error {{ color: #f87171; }}
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>Sign in to BurnChat</h1>
+  <p>Privacy proxy for AI. Your data stays anonymous.</p>
+  <button id="btn" onclick="startSignIn()" disabled>Loading Google Sign-In...</button>
+  <div id="status" class="status"></div>
+</div>
+<script>
+var GOOGLE_CLIENT_ID = "{GOOGLE_CLIENT_ID}";
+
+// Wait for GIS library to load
+function waitForGIS(timeout) {{
+  return new Promise(function(resolve, reject) {{
+    if (typeof google !== 'undefined' && google.accounts && google.accounts.oauth2) {{
+      resolve(); return;
+    }}
+    var start = Date.now();
+    var iv = setInterval(function() {{
+      if (typeof google !== 'undefined' && google.accounts && google.accounts.oauth2) {{
+        clearInterval(iv); resolve(); return;
+      }}
+      if (Date.now() - start > timeout) {{
+        clearInterval(iv);
+        reject(new Error('Google library failed to load'));
+      }}
+    }}, 100);
+  }});
+}}
+
+waitForGIS(8000).then(function() {{
+  document.getElementById('btn').disabled = false;
+  document.getElementById('btn').textContent = 'Sign in with Google';
+}}).catch(function(err) {{
+  document.getElementById('status').className = 'status error';
+  document.getElementById('status').textContent = err.message;
+}});
+
+function startSignIn() {{
+  var btn = document.getElementById('btn');
+  var status = document.getElementById('status');
+  btn.disabled = true;
+  btn.textContent = 'Signing in...';
+  status.textContent = 'Opening Google sign-in...';
+  status.className = 'status';
+
+  var client = google.accounts.oauth2.initCodeClient({{
+    client_id: GOOGLE_CLIENT_ID,
+    scope: 'email profile openid',
+    ux_mode: 'popup',
+    callback: function(response) {{
+      if (response.error || !response.code) {{
+        status.className = 'status error';
+        status.textContent = 'Google sign-in error: ' + (response.error || 'no code received');
+        btn.disabled = false;
+        btn.textContent = 'Try again';
+        return;
+      }}
+      status.textContent = 'Exchanging code with server...';
+      // POST the code to the backend
+      fetch('/api/auth/google-code', {{
+        method: 'POST',
+        headers: {{ 'Content-Type': 'application/json' }},
+        body: JSON.stringify({{ code: response.code }})
+      }})
+      .then(function(res) {{
+        if (!res.ok) return res.text().then(function(t) {{ throw new Error(t); }});
+        return res.json();
+      }})
+      .then(function(data) {{
+        status.textContent = 'Success! Redirecting...';
+        // Store auth in localStorage (format: burnchat_auth JSON)
+        try {{
+          localStorage.setItem('burnchat_auth', JSON.stringify({{
+            token: data.token,
+            user_id: data.user_id,
+            email: data.email,
+            credit_balance: data.credit_balance
+          }}));
+        }} catch(e) {{}}
+        // Redirect to main app with token
+        window.location.href = '/?token=' + encodeURIComponent(data.token);
+      }})
+      .catch(function(err) {{
+        status.className = 'status error';
+        status.textContent = 'Error: ' + err.message;
+        btn.disabled = false;
+        btn.textContent = 'Try again';
+      }});
+    }},
+    error_callback: function(error) {{
+      status.className = 'status error';
+      status.textContent = 'Google error: ' + (error.message || error.type || 'unknown');
+      btn.disabled = false;
+      btn.textContent = 'Try again';
+    }}
+  }});
+
+  client.requestCode();
+}}
+</script>
+</body>
+</html>""")
+
+
 @router.get("/auth/me")
 async def get_me(user: dict = Depends(get_current_user)):
     """Return the current authenticated user's info including credit balance."""
