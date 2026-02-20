@@ -29,10 +29,10 @@ export default function RootLayout({
     <html lang="en" className="dark">
       <head>
         <script src="https://accounts.google.com/gsi/client" async defer></script>
-        {/* Register service worker to intercept /auth/callback (which 404s on the static server) */}
+        {/* Unregister any stale service workers from previous builds */}
         <script
           dangerouslySetInnerHTML={{
-            __html: `if("serviceWorker"in navigator){navigator.serviceWorker.register("/sw.js").catch(function(){})}`,
+            __html: `if("serviceWorker"in navigator){navigator.serviceWorker.getRegistrations().then(function(r){r.forEach(function(reg){reg.unregister()})})}`,
           }}
         />
       </head>
