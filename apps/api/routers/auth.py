@@ -84,14 +84,14 @@ async def google_callback(request: Request, code: Optional[str] = None, error: O
 
     Exchanges the authorization code for tokens, fetches user info,
     upserts the user in Supabase, and returns an inline HTML page that
-    stores the JWT in localStorage and redirects to /app.
+    stores the JWT in localStorage and redirects to /.
     """
 
     if error:
-        return RedirectResponse(url=f"/app?auth_error={error}")
+        return RedirectResponse(url=f"/?auth_error={error}")
 
     if not code:
-        return RedirectResponse(url="/app?auth_error=missing_code")
+        return RedirectResponse(url="/?auth_error=missing_code")
 
     redirect_uri = _build_redirect_uri(request)
 
@@ -109,12 +109,12 @@ async def google_callback(request: Request, code: Optional[str] = None, error: O
         )
 
     if token_response.status_code != 200:
-        return RedirectResponse(url="/app?auth_error=token_exchange_failed")
+        return RedirectResponse(url="/?auth_error=token_exchange_failed")
 
     tokens = token_response.json()
     access_token = tokens.get("access_token")
     if not access_token:
-        return RedirectResponse(url="/app?auth_error=no_access_token")
+        return RedirectResponse(url="/?auth_error=no_access_token")
 
     # Fetch user info from Google
     async with httpx.AsyncClient() as client:
@@ -124,14 +124,14 @@ async def google_callback(request: Request, code: Optional[str] = None, error: O
         )
 
     if userinfo_response.status_code != 200:
-        return RedirectResponse(url="/app?auth_error=userinfo_failed")
+        return RedirectResponse(url="/?auth_error=userinfo_failed")
 
     google_user = userinfo_response.json()
     google_id = google_user.get("id")
     email = google_user.get("email")
 
     if not google_id or not email:
-        return RedirectResponse(url="/app?auth_error=invalid_user_data")
+        return RedirectResponse(url="/?auth_error=invalid_user_data")
 
     # Create or find user in Supabase
     db = get_supabase()

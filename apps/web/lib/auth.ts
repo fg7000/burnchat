@@ -202,23 +202,7 @@ function signInWithPopup(): Promise<{
  * Last-resort: full-page redirect to /api/auth/google.
  */
 function signInWithRedirect(): Promise<never> {
-  return new Promise(async (_resolve, reject) => {
-    try {
-      if ("serviceWorker" in navigator) {
-        const reg = await navigator.serviceWorker.register("/sw.js");
-        if (reg.installing || reg.waiting) {
-          await new Promise<void>((resolve) => {
-            const sw = reg.installing || reg.waiting;
-            if (!sw) { resolve(); return; }
-            sw.addEventListener("statechange", () => {
-              if (sw.state === "activated") resolve();
-            });
-            setTimeout(resolve, 3000);
-          });
-        }
-      }
-    } catch { /* proceed anyway */ }
-
+  return new Promise((_resolve, reject) => {
     window.location.href = "/api/auth/google";
     setTimeout(() => reject(new Error("Redirect failed")), 5000);
   });

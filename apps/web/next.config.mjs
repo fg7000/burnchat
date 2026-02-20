@@ -2,9 +2,9 @@
 const nextConfig = {
   // Static export only for production builds; dev server needs rewrites.
   ...(process.env.NODE_ENV === "production" ? { output: "export" } : {}),
-  // Generate /dir/index.html instead of /dir.html — most static servers
-  // serve index.html for directory paths, fixing 404s on /auth/callback etc.
-  trailingSlash: true,
+  // trailingSlash only for production static export (generates /dir/index.html).
+  // In dev mode it causes cascading 308 redirects that break OAuth and API proxy.
+  ...(process.env.NODE_ENV === "production" ? { trailingSlash: true } : {}),
   images: { unoptimized: true },
   webpack: (config) => {
     // Handle pdf.js worker
