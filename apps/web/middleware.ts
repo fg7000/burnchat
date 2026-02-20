@@ -11,6 +11,8 @@ import { NextRequest, NextResponse } from "next/server";
 export function middleware(request: NextRequest) {
   const { pathname, searchParams } = request.nextUrl;
 
+  console.log(`[middleware] ${request.method} ${pathname}?${searchParams.toString()}`);
+
   if (pathname === "/auth/callback" || pathname === "/auth/callback/") {
     const token = searchParams.get("token") || searchParams.get("auth_token");
     if (token) {
@@ -18,13 +20,18 @@ export function middleware(request: NextRequest) {
       url.pathname = "/";
       url.searchParams.delete("auth_token");
       url.searchParams.set("token", token);
+      console.log(`[middleware] Redirecting to /?token=...`);
       return NextResponse.redirect(url);
     }
+    // No token — redirect to home anyway (page component also does this)
+    console.log(`[middleware] No token, redirecting to /`);
+    return NextResponse.redirect(new URL("/", request.url));
   }
 
   return NextResponse.next();
 }
 
+// Match ALL paths to log what the browser actually requests
 export const config = {
-  matcher: ["/auth/callback", "/auth/callback/"],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
 };
