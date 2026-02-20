@@ -15,23 +15,45 @@ export default function Home() {
   const { token, sessionMode, setCreditBalance, setAuth } = useSessionStore();
   const { showSessionSidebar, setShowCreditModal } = useUIStore();
 
-  // Pick up a pending auth token from URL params (OAuth redirect) or localStorage
+  // Pick up auth from multiple sources:
+  //   1. URL param ?auth_token=JWT (old redirect flow)
+  //   2. localStorage "burnchat_auth" (set by inline HTML callback page)
+  //   3. localStorage "pending_auth_token" (legacy)
   useEffect(() => {
     if (typeof window === "undefined") return;
 
+    // Source 1: URL param
     const params = new URLSearchParams(window.location.search);
     const urlToken = params.get("auth_token");
-    const pending = urlToken || localStorage.getItem("pending_auth_token");
-
-    if (!pending) return;
-
-    // Clean up: remove from localStorage and strip token from URL
-    localStorage.removeItem("pending_auth_token");
     if (urlToken) {
       params.delete("auth_token");
       const clean = params.toString();
-      window.history.replaceState({}, "", clean ? `/app?${clean}` : "/app");
+      window.history.replaceState({}, "", clean ? `/?${clean}` : "/");
     }
+
+    // Source 2: localStorage "burnchat_auth" (set by /api/auth/callback HTML)
+    let stored: { token: string; user_id: string; email: string; credit_balance: number } | null = null;
+    try {
+      const raw = localStorage.getItem("burnchat_auth");
+      if (raw) {
+        stored = JSON.parse(raw);
+        localStorage.removeItem("burnchat_auth");
+      }
+    } catch { /* ignore parse errors */ }
+
+    // Source 3: legacy pending token
+    const legacyToken = localStorage.getItem("pending_auth_token");
+    if (legacyToken) localStorage.removeItem("pending_auth_token");
+
+    // Use stored auth directly (already has user info)
+    if (stored?.token) {
+      setAuth(stored.token, stored.user_id, stored.email, stored.credit_balance);
+      return;
+    }
+
+    // Fall back to token-only sources (need /api/auth/me call)
+    const pending = urlToken || legacyToken;
+    if (!pending) return;
 
     apiClient
       .getMe(pending)
@@ -39,6 +61,18 @@ export default function Home() {
         setAuth(pending, user.user_id, user.email, user.credit_balance);
       })
       .catch(() => {});
+  }, [setAuth]);
+
+  // Listen for postMessage from auth popup
+  useEffect(() => {
+    const handler = (e: MessageEvent) => {
+      if (e.data?.type === "burnchat_auth" && e.data.auth?.token) {
+        const { token: t, user_id, email: em, credit_balance } = e.data.auth;
+        setAuth(t, user_id, em, credit_balance);
+      }
+    };
+    window.addEventListener("message", handler);
+    return () => window.removeEventListener("message", handler);
   }, [setAuth]);
 
   // Check for payment success/cancel in URL params

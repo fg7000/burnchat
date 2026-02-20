@@ -1,3 +1,4 @@
+import json as json_module
 import os
 from datetime import datetime, timedelta, timezone
 from typing import Optional
@@ -6,7 +7,7 @@ from urllib.parse import urlencode
 import httpx
 import jwt
 from fastapi import APIRouter, Depends, HTTPException, Request
-from fastapi.responses import RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 
 from database import get_supabase
 from middleware.auth import get_current_user
@@ -167,11 +168,46 @@ async def google_callback(request: Request, code: Optional[str] = None, error: O
             }
         ).execute()
 
-    # Issue JWT and redirect to /app with the token.
-    # We redirect to /app (not /auth/callback) because /app is the one route
-    # we KNOW works in every environment (direct, proxy, web-IDE).
+    # Issue JWT and return a self-contained HTML page.
+    # We do NOT redirect because proxy/tunnel environments may cache or
+    # misroute 302 responses.  Instead the page stores the auth data in
+    # localStorage and navigates to "/" via JavaScript, which the main app
+    # picks up on mount.
     token = _issue_jwt(user_id, email)
-    return RedirectResponse(url=f"/app?auth_token={token}")
+    credit_balance = user.get("credit_balance", NEW_USER_BONUS_CREDITS)
+
+    html = f"""<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>Signing in…</title></head>
+<body style="background:#030712;color:#9ca3af;display:flex;align-items:center;
+justify-content:center;height:100vh;margin:0;font-family:sans-serif">
+<div style="text-align:center">
+<div style="width:32px;height:32px;border:2px solid #d1d5db;border-top-color:transparent;
+border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 16px"></div>
+<p>Signing you in…</p>
+</div>
+<style>@keyframes spin{{from{{transform:rotate(0)}}to{{transform:rotate(360deg)}} }}</style>
+<script>
+try {{
+  var auth = {{
+    token: {json_module.dumps(token)},
+    user_id: {json_module.dumps(user_id)},
+    email: {json_module.dumps(email)},
+    credit_balance: {json_module.dumps(credit_balance)}
+  }};
+  localStorage.setItem("burnchat_auth", JSON.stringify(auth));
+}} catch(e) {{}}
+// If inside a popup opened by the main app, notify and close
+if (window.opener) {{
+  try {{
+    window.opener.postMessage({{ type: "burnchat_auth", auth: auth }}, "*");
+  }} catch(e) {{}}
+  setTimeout(function() {{ window.close(); }}, 300);
+}} else {{
+  window.location.replace("/");
+}}
+</script>
+</body></html>"""
+    return HTMLResponse(content=html)
 
 
 @router.post("/auth/google-token")
