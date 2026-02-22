@@ -7,8 +7,8 @@ import { apiClient } from "@/lib/api-client";
 import { cn } from "@/lib/utils";
 import { FileText, Link, Folder, FileEdit, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { parsePDF, type ProgressCallback } from "@/lib/parsers/pdf-parser";
-import { parseDOCX } from "@/lib/parsers/docx-parser";
+//import { parsePDF, type ProgressCallback } from "@/lib/parsers/pdf-parser";
+//import { parseDOCX } from "@/lib/parsers/docx-parser";
 import { parseImage } from "@/lib/parsers/ocr-parser";
 
 type InlineMode = null | "url" | "gdrive" | "text";
@@ -81,25 +81,16 @@ export default function AttachmentMenu() {
   }, [setShowAttachmentMenu]);
 
   // Parse a single file based on its type
-  const parseFile = async (
-    file: File,
-    onProgress?: ProgressCallback
-  ): Promise<string> => {
-    const name = file.name.toLowerCase();
-    if (name.endsWith(".pdf")) {
-      return parsePDF(file, onProgress);
-    } else if (name.endsWith(".docx")) {
-      return parseDOCX(file);
-    } else if (
-      name.endsWith(".png") ||
-      name.endsWith(".jpg") ||
-      name.endsWith(".jpeg")
-    ) {
-      return parseImage(file);
-    } else {
-      // .txt and other text files
-      return file.text();
-    }
+  const parseFile = async (file: File): Promise<string> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const res = await fetch('/api/parse-file', {
+      method: 'POST',
+      body: formData,
+    });
+    if (!res.ok) throw new Error(`Server returned ${res.status}`);
+    const data = await res.json();
+    return data.text;
   };
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -140,12 +131,7 @@ export default function AttachmentMenu() {
 
         let text: string;
         try {
-          text = await parseFile(file, (pct, detail) => {
-            updateDocumentStatus(filename, "parsing", {
-              progress: Math.round(pct * 0.5), // parsing = 0-50%
-              progressDetail: detail,
-            });
-          });
+          text = await parseFile(file);
         } catch (parseError) {
           console.error("PDF parse error:", parseError);
           throw new Error(
@@ -205,14 +191,7 @@ export default function AttachmentMenu() {
             content: `[document:${filename}]`,
           });
 
-          const text = await parseFile(file, (pct, detail) => {
-            updateDocumentStatus(filename, "parsing", {
-              progress: Math.round(pct * 0.5),
-              progressDetail: detail
-                ? `${detail} (file ${idx + 1}/${totalFiles})`
-                : `File ${idx + 1} of ${totalFiles}`,
-            });
-          });
+          const text = await parseFile(file);
           updateDocumentStatus(filename, "anonymizing", {
             text,
             progress: 50,

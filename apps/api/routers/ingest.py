@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, UploadFile, File
 
 from models.schemas import (
     GDriveFolderRequest,
@@ -80,3 +80,30 @@ async def ingest_gdrive_folder(request: GDriveFolderRequest):
         files=results,
         total_files=len(results),
     )
+
+
+@router.post("/parse-file")
+async def parse_file(file: UploadFile = File(...)):
+    import io
+    content = await file.read()
+    fname = file.filename.lower() if file.filename else ""
+
+    if fname.endswith(".pdf"):
+        import pypdf
+        reader = pypdf.PdfReader(io.BytesIO(content))
+        text = ""
+        for page in reader.pages:
+            text += (page.extract_text() or "") + "\n\n"
+        return {"text": text, "filename": file.filename, "pages": len(reader.pages)}
+
+    elif fname.endswith(".docx"):
+        import docx
+        doc = docx.Document(io.BytesIO(content))
+        text = "\n\n".join([p.text for p in doc.paragraphs])
+        return {"text": text, "filename": file.filename, "pages": 1}
+
+    elif fname.endswith(".txt"):
+        return {"text": content.decode("utf-8"), "filename": file.filename, "pages": 1}
+
+    else:
+        return {"text": content.decode("utf-8", errors="replace"), "filename": file.filename, "pages": 1}
