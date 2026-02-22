@@ -1,10 +1,8 @@
 "use client";
 
-import { useState } from "react";
 import { Shield, LogIn, User } from "lucide-react";
 import { useSessionStore } from "@/store/session-store";
 import { useUIStore } from "@/store/ui-store";
-import { signInWithGoogle } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import ModelSelector from "@/components/model-selector";
 import CreditDisplay from "@/components/credit-display";
@@ -17,10 +15,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 export default function TopBar() {
-  const { email, token, creditBalance, clearAuth, setAuth } = useSessionStore();
+  const { email, token, creditBalance, clearAuth } = useSessionStore();
   const { setShowCreditModal } = useUIStore();
-  const [signingIn, setSigningIn] = useState(false);
-  const [signInError, setSignInError] = useState<string | null>(null);
 
   const isSignedIn = !!token && !!email;
 
@@ -85,23 +81,15 @@ export default function TopBar() {
               </DropdownMenuContent>
             </DropdownMenu>
           ) : (
-            <div className="flex items-center gap-2">
-              {signInError && (
-                <span className="text-xs text-red-400 max-w-[200px] truncate" title={signInError}>
-                  {signInError}
-                </span>
-              )}
-              <Button
-                variant="default"
-                size="sm"
-                onClick={handleSignIn}
-                disabled={signingIn}
-                className="gap-1.5"
-              >
-                <LogIn className="h-4 w-4" />
-                {signingIn ? "Signing in..." : "Sign in with Google"}
-              </Button>
-            </div>
+            <Button
+              variant="default"
+              size="sm"
+              onClick={handleSignIn}
+              className="gap-1.5"
+            >
+              <LogIn className="h-4 w-4" />
+              Sign in with Google
+            </Button>
           )}
         </div>
       </div>

@@ -28,18 +28,13 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="dark">
-      <head>
-        <Script src="https://accounts.google.com/gsi/client" strategy="beforeInteractive" />
-        <Script id="sw-cleanup" strategy="beforeInteractive">
-          {`if("serviceWorker" in navigator){navigator.serviceWorker.getRegistrations().then(function(r){r.forEach(function(reg){reg.unregister()})})}`}
-        </Script>
-      </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-gray-950 text-gray-100 min-h-screen`}
       >
         <TooltipProvider delayDuration={200}>
           {children}
         </TooltipProvider>
+        <Script src="https://accounts.google.com/gsi/client" strategy="afterInteractive" />
       </body>
     </html>
   );
