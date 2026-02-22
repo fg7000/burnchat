@@ -8,9 +8,9 @@ const config: Config = {
   ],
   theme: {
     extend: {
-      colors: {
-        background: "var(--background)",
-        foreground: "var(--foreground)",
+      fontFamily: {
+        primary: ['"DM Sans"', "sans-serif"],
+        mono: ['"JetBrains Mono"', "monospace"],
       },
       keyframes: {
         "accordion-down": {

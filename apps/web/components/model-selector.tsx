@@ -1,11 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ChevronDown, Star, Sparkles } from "lucide-react";
+import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useSessionStore } from "@/store/session-store";
 import { apiClient } from "@/lib/api-client";
-import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -48,12 +47,8 @@ export default function ModelSelector() {
           const fetched: ModelOption[] = data.models.map((m: Record<string, any>) => ({
             id: m.id,
             name: m.name || m.id,
-            inputPrice: m.input_price
-              ? `$${m.input_price}/M`
-              : "$0.00/M",
-            outputPrice: m.output_price
-              ? `$${m.output_price}/M`
-              : "$0.00/M",
+            inputPrice: m.input_price ? `$${m.input_price}/M` : "$0.00/M",
+            outputPrice: m.output_price ? `$${m.output_price}/M` : "$0.00/M",
             badge: m.badge,
           }));
           setModels(fetched);
@@ -65,11 +60,9 @@ export default function ModelSelector() {
     fetchModels();
   }, [token]);
 
-  // Determine the recommended model when documents are loaded
   useEffect(() => {
     if (hasDocuments) {
       const totalTokens = documents.reduce((sum, d) => sum + d.tokenCount, 0);
-      // Simple heuristic: recommend cheaper models for smaller documents
       if (totalTokens < 2000) {
         setRecommendedModel("openai/gpt-4o-mini");
       } else if (totalTokens < 10000) {
@@ -89,59 +82,82 @@ export default function ModelSelector() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-8 gap-1.5 px-2.5 text-sm text-gray-300 hover:text-gray-100"
+        <button
+          className="flex items-center gap-1.5 font-mono"
+          style={{
+            height: 30,
+            padding: "0 10px",
+            borderRadius: "var(--radius-md)",
+            background: "var(--surface)",
+            border: "1px solid var(--border)",
+            fontSize: 12,
+            color: "var(--text-secondary)",
+          }}
         >
-          <Sparkles className="h-3.5 w-3.5 text-gray-400" />
-          <span className="max-w-[140px] truncate">{selectedModelName}</span>
-          <ChevronDown className="h-3.5 w-3.5 text-gray-500" />
-        </Button>
+          <span className="max-w-[120px] truncate">{selectedModelName}</span>
+          <ChevronDown style={{ width: 12, height: 12, opacity: 0.5 }} />
+        </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-72">
-        {/* Auto option */}
         <DropdownMenuItem
           onClick={() => setSelectedModel(null)}
-          className={cn(
-            "flex items-center gap-2 py-2",
-            !selectedModel && "bg-gray-800 text-white"
-          )}
+          className={cn(!selectedModel && "font-medium")}
         >
-          <Star className="h-4 w-4 text-gray-400" />
           <div className="flex flex-1 items-center justify-between">
-            <span className="font-medium">Auto (Recommended)</span>
+            <span style={{ fontFamily: "var(--font-primary)", fontSize: 13 }}>
+              Auto (Recommended)
+            </span>
           </div>
         </DropdownMenuItem>
 
         <DropdownMenuSeparator />
 
-        {/* Model list */}
         {models.map((model) => (
           <DropdownMenuItem
             key={model.id}
             onClick={() => setSelectedModel(model.id)}
-            className={cn(
-              "flex items-center gap-2 py-2",
-              selectedModel === model.id && "bg-gray-800 text-white"
-            )}
+            className={cn(selectedModel === model.id && "font-medium")}
           >
             <div className="flex flex-1 items-center justify-between">
               <div className="flex items-center gap-2">
-                <span className="text-sm">{model.name}</span>
+                <span style={{ fontFamily: "var(--font-primary)", fontSize: 13 }}>
+                  {model.name}
+                </span>
                 {hasDocuments && recommendedModel === model.id && (
-                  <span className="rounded bg-gray-700 px-1.5 py-0.5 text-[10px] font-medium text-gray-200">
+                  <span
+                    style={{
+                      fontSize: 10,
+                      padding: "1px 6px",
+                      borderRadius: 6,
+                      background: "var(--accent-subtle-bg)",
+                      color: "var(--accent)",
+                      fontFamily: "var(--font-mono)",
+                    }}
+                  >
                     Recommended
                   </span>
                 )}
                 {model.badge && (
-                  <span className="rounded bg-gray-700 px-1.5 py-0.5 text-[10px] font-medium text-gray-300">
+                  <span
+                    style={{
+                      fontSize: 10,
+                      padding: "1px 6px",
+                      borderRadius: 6,
+                      background: "var(--surface)",
+                      border: "1px solid var(--border)",
+                      color: "var(--text-secondary)",
+                      fontFamily: "var(--font-mono)",
+                    }}
+                  >
                     {model.badge}
                   </span>
                 )}
               </div>
-              <span className="ml-2 text-[11px] text-gray-500">
-                {model.inputPrice} in / {model.outputPrice} out
+              <span
+                className="font-mono"
+                style={{ fontSize: 10, color: "var(--text-muted)" }}
+              >
+                {model.inputPrice} / {model.outputPrice}
               </span>
             </div>
           </DropdownMenuItem>

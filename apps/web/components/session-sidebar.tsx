@@ -38,12 +38,10 @@ export default function SessionSidebar() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const nameInputRef = useRef<HTMLInputElement>(null);
 
-  // Sync editName with sessionName
   useEffect(() => {
     setEditName(sessionName);
   }, [sessionName]);
 
-  // Focus the input when editing
   useEffect(() => {
     if (isEditingName && nameInputRef.current) {
       nameInputRef.current.focus();
@@ -95,7 +93,6 @@ export default function SessionSidebar() {
   );
 
   if (!isVisible) {
-    // Mobile hamburger toggle when sidebar is hidden but session mode is active
     if (sessionMode === "session") {
       return (
         <button
@@ -103,9 +100,16 @@ export default function SessionSidebar() {
             setShowSessionSidebar(true);
             setMobileOpen(true);
           }}
-          className="fixed left-4 top-16 z-40 rounded-md bg-gray-800 p-2 text-gray-300 hover:bg-gray-700 lg:hidden"
+          className="fixed left-4 top-16 z-40 lg:hidden"
+          style={{
+            padding: 8,
+            borderRadius: "var(--radius-sm)",
+            background: "var(--surface)",
+            border: "1px solid var(--border)",
+            color: "var(--text-secondary)",
+          }}
         >
-          <Menu className="h-5 w-5" />
+          <Menu style={{ width: 20, height: 20 }} />
         </button>
       );
     }
@@ -115,9 +119,8 @@ export default function SessionSidebar() {
   const sidebarContent = (
     <div className="flex h-full flex-col">
       {/* Header */}
-      <div className="border-b border-gray-800 p-4">
+      <div style={{ borderBottom: "1px solid var(--border)", padding: 16 }}>
         <div className="flex items-center justify-between">
-          {/* Editable session name */}
           <div className="flex-1 min-w-0">
             {isEditingName ? (
               <input
@@ -126,13 +129,31 @@ export default function SessionSidebar() {
                 onChange={(e) => setEditName(e.target.value)}
                 onBlur={handleNameSubmit}
                 onKeyDown={handleNameKeyDown}
-                className="w-full rounded border border-gray-600 bg-gray-800 px-2 py-1 text-sm text-gray-100 outline-none focus:border-gray-400"
+                className="w-full font-primary"
+                style={{
+                  padding: "4px 8px",
+                  borderRadius: "var(--radius-sm)",
+                  border: "1px solid var(--border)",
+                  background: "var(--bg)",
+                  fontSize: 13,
+                  color: "var(--text-primary)",
+                  outline: "none",
+                }}
                 maxLength={100}
               />
             ) : (
               <button
                 onClick={() => setIsEditingName(true)}
-                className="block w-full truncate text-left text-sm font-medium text-gray-200 hover:text-white transition-colors"
+                className="block w-full truncate text-left font-primary"
+                style={{
+                  fontSize: 13,
+                  fontWeight: 500,
+                  color: "var(--text-primary)",
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                  padding: 0,
+                }}
                 title="Click to edit session name"
               >
                 {sessionName}
@@ -140,19 +161,18 @@ export default function SessionSidebar() {
             )}
           </div>
 
-          {/* Mobile close */}
           <button
             onClick={() => {
               setMobileOpen(false);
               setShowSessionSidebar(false);
             }}
-            className="ml-2 rounded p-1 text-gray-400 hover:text-gray-200 lg:hidden"
+            className="ml-2 lg:hidden"
+            style={{ color: "var(--text-muted)", background: "none", border: "none", cursor: "pointer" }}
           >
-            <X className="h-4 w-4" />
+            <X style={{ width: 16, height: 16 }} />
           </button>
         </div>
 
-        {/* Action buttons */}
         <div className="mt-3 flex gap-2">
           <Button
             variant="secondary"
@@ -162,9 +182,9 @@ export default function SessionSidebar() {
             className="flex-1 gap-1.5"
           >
             {isSaving ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              <Loader2 className="animate-spin" style={{ width: 14, height: 14 }} />
             ) : (
-              <Save className="h-3.5 w-3.5" />
+              <Save style={{ width: 14, height: 14 }} />
             )}
             Save
           </Button>
@@ -174,7 +194,7 @@ export default function SessionSidebar() {
             onClick={() => setShowSessionList(true)}
             className="flex-1 gap-1.5"
           >
-            <List className="h-3.5 w-3.5" />
+            <List style={{ width: 14, height: 14 }} />
             Sessions
           </Button>
         </div>
@@ -185,8 +205,8 @@ export default function SessionSidebar() {
         <div className="p-3 space-y-1">
           {documents.length === 0 ? (
             <div className="flex flex-col items-center gap-2 py-8 text-center">
-              <Layers className="h-8 w-8 text-gray-600" />
-              <p className="text-xs text-gray-500">
+              <Layers style={{ width: 32, height: 32, color: "var(--text-muted)" }} />
+              <p className="font-primary" style={{ fontSize: 12, color: "var(--text-muted)" }}>
                 No documents loaded yet
               </p>
             </div>
@@ -194,19 +214,24 @@ export default function SessionSidebar() {
             documents.map((doc) => (
               <div
                 key={doc.filename}
-                className="flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm hover:bg-gray-800/60 transition-colors"
+                className="flex items-center gap-2.5"
+                style={{
+                  padding: "8px 10px",
+                  borderRadius: "var(--radius-sm)",
+                  fontSize: 13,
+                }}
               >
-                <FileText className="h-4 w-4 shrink-0 text-gray-500" />
+                <FileText style={{ width: 16, height: 16, flexShrink: 0, color: "var(--text-muted)" }} />
                 <div className="flex-1 min-w-0">
-                  <p className="truncate text-gray-300" title={doc.filename}>
+                  <p className="truncate font-primary" style={{ color: "var(--text-secondary)" }} title={doc.filename}>
                     {doc.filename}
                   </p>
                 </div>
                 <div className="shrink-0">
                   {doc.status === "ready" && (
                     <div className="flex items-center gap-1">
-                      <Check className="h-3.5 w-3.5 text-white" />
-                      <span className="text-[11px] text-gray-500">
+                      <Check style={{ width: 14, height: 14, color: "var(--accent)" }} />
+                      <span className="font-mono" style={{ fontSize: 10, color: "var(--text-muted)" }}>
                         {doc.chunkCount || 0} chunks
                       </span>
                     </div>
@@ -215,14 +240,14 @@ export default function SessionSidebar() {
                     doc.status === "anonymizing" ||
                     doc.status === "embedding") && (
                     <div className="flex items-center gap-1">
-                      <Loader2 className="h-3.5 w-3.5 animate-spin text-gray-300" />
-                      <span className="text-[11px] text-gray-500 capitalize">
+                      <Loader2 className="animate-spin" style={{ width: 14, height: 14, color: "var(--text-secondary)" }} />
+                      <span className="font-mono capitalize" style={{ fontSize: 10, color: "var(--text-muted)" }}>
                         {doc.status}
                       </span>
                     </div>
                   )}
                   {doc.status === "error" && (
-                    <XCircle className="h-3.5 w-3.5 text-gray-400" />
+                    <XCircle style={{ width: 14, height: 14, color: "var(--text-muted)" }} />
                   )}
                 </div>
               </div>
@@ -233,8 +258,8 @@ export default function SessionSidebar() {
 
       {/* Footer */}
       {documents.length > 0 && (
-        <div className="border-t border-gray-800 px-4 py-3">
-          <div className="flex items-center justify-between text-xs text-gray-500">
+        <div style={{ borderTop: "1px solid var(--border)", padding: "12px 16px" }}>
+          <div className="flex items-center justify-between font-mono" style={{ fontSize: 11, color: "var(--text-muted)" }}>
             <span>{totalChunks} total chunks</span>
             <span>{totalEntities} entities found</span>
           </div>
@@ -246,7 +271,13 @@ export default function SessionSidebar() {
   return (
     <>
       {/* Desktop sidebar */}
-      <aside className="hidden lg:flex w-64 shrink-0 border-r border-gray-800 bg-gray-900 h-full">
+      <aside
+        className="hidden lg:flex w-64 shrink-0 h-full"
+        style={{
+          borderRight: "1px solid var(--border)",
+          background: "var(--bg)",
+        }}
+      >
         {sidebarContent}
       </aside>
 
@@ -254,13 +285,20 @@ export default function SessionSidebar() {
       {mobileOpen && (
         <>
           <div
-            className="fixed inset-0 z-40 bg-black/60 lg:hidden"
+            className="fixed inset-0 z-40 lg:hidden"
+            style={{ background: "rgba(0,0,0,0.6)" }}
             onClick={() => {
               setMobileOpen(false);
               setShowSessionSidebar(false);
             }}
           />
-          <aside className="fixed inset-y-0 left-0 z-50 w-64 border-r border-gray-800 bg-gray-900 lg:hidden">
+          <aside
+            className="fixed inset-y-0 left-0 z-50 w-64 lg:hidden"
+            style={{
+              borderRight: "1px solid var(--border)",
+              background: "var(--bg)",
+            }}
+          >
             {sidebarContent}
           </aside>
         </>

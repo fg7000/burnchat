@@ -16,9 +16,16 @@ const DropdownMenuContent = React.forwardRef<
       ref={ref}
       sideOffset={sideOffset}
       className={cn(
-        "z-50 min-w-[8rem] overflow-hidden rounded-md border border-gray-700 bg-gray-900 p-1 text-gray-200 shadow-md data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95",
+        "z-50 min-w-[8rem] overflow-hidden p-1 shadow-md data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95",
         className
       )}
+      style={{
+        background: "#111113",
+        border: "1px solid var(--border)",
+        borderRadius: "var(--radius-lg)",
+        fontFamily: "var(--font-primary)",
+        color: "var(--text-secondary)",
+      }}
       {...props}
     />
   </DropdownMenuPrimitive.Portal>
@@ -32,9 +39,24 @@ const DropdownMenuItem = React.forwardRef<
   <DropdownMenuPrimitive.Item
     ref={ref}
     className={cn(
-      "relative flex cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors focus:bg-gray-800 focus:text-gray-100 data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
+      "relative flex cursor-pointer select-none items-center px-2.5 py-2 text-sm outline-none data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
       className
     )}
+    style={{
+      borderRadius: "var(--radius-sm)",
+      fontFamily: "var(--font-primary)",
+      fontSize: 13,
+      color: "var(--text-secondary)",
+      transition: "all 0.15s ease",
+    }}
+    onMouseEnter={(e) => {
+      (e.currentTarget as HTMLElement).style.background = "var(--surface-hover)";
+      (e.currentTarget as HTMLElement).style.color = "var(--text-primary)";
+    }}
+    onMouseLeave={(e) => {
+      (e.currentTarget as HTMLElement).style.background = "transparent";
+      (e.currentTarget as HTMLElement).style.color = "var(--text-secondary)";
+    }}
     {...props}
   />
 ));
@@ -46,7 +68,8 @@ const DropdownMenuLabel = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <DropdownMenuPrimitive.Label
     ref={ref}
-    className={cn("px-2 py-1.5 text-sm font-semibold text-gray-400", className)}
+    className={cn("px-2 py-1.5 text-sm font-semibold", className)}
+    style={{ color: "var(--text-muted)", fontFamily: "var(--font-primary)" }}
     {...props}
   />
 ));
@@ -58,7 +81,8 @@ const DropdownMenuSeparator = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <DropdownMenuPrimitive.Separator
     ref={ref}
-    className={cn("-mx-1 my-1 h-px bg-gray-700", className)}
+    className={cn("-mx-1 my-1 h-px", className)}
+    style={{ background: "var(--border)" }}
     {...props}
   />
 ));

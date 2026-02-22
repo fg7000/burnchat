@@ -1,49 +1,63 @@
 "use client";
 
 import { ArrowRight } from "lucide-react";
-import { type MappingEntry } from "@/store/session-store";
+
+interface DiffEntry {
+  original: string;
+  replacement: string;
+  entity_type: string;
+}
 
 interface AnonymizationDiffProps {
-  mapping: MappingEntry[];
+  mapping: DiffEntry[];
 }
 
 export function AnonymizationDiff({ mapping }: AnonymizationDiffProps) {
-  if (!mapping || mapping.length === 0) {
-    return (
-      <div className="rounded border border-gray-700 bg-gray-800 p-3 text-xs text-gray-500">
-        No anonymization mappings to display.
-      </div>
-    );
-  }
+  if (!mapping || mapping.length === 0) return null;
 
   return (
-    <div className="max-h-64 overflow-y-auto rounded border border-gray-700 bg-gray-800">
-      <div className="divide-y divide-gray-700/50">
-        {mapping.map((entry, index) => (
-          <div
-            key={`${entry.original}-${entry.replacement}-${index}`}
-            className="flex items-center gap-2 px-3 py-2"
+    <div
+      style={{
+        maxHeight: 200,
+        overflowY: "auto",
+        borderRadius: "var(--radius-sm)",
+        border: "1px solid var(--border)",
+        background: "var(--bg)",
+      }}
+    >
+      {mapping.map((entry, i) => (
+        <div
+          key={i}
+          className="flex items-center gap-2"
+          style={{
+            padding: "6px 10px",
+            borderBottom: i < mapping.length - 1 ? "1px solid var(--border)" : "none",
+            fontSize: 12,
+          }}
+        >
+          <span className="font-mono" style={{ color: "var(--accent)" }}>
+            {entry.original}
+          </span>
+          <ArrowRight style={{ width: 12, height: 12, color: "var(--text-muted)", flexShrink: 0 }} />
+          <span className="font-mono" style={{ color: "var(--text-secondary)" }}>
+            {entry.replacement}
+          </span>
+          <span
+            className="ml-auto font-mono"
+            style={{
+              fontSize: 10,
+              padding: "1px 6px",
+              borderRadius: 4,
+              background: "var(--surface)",
+              border: "1px solid var(--border)",
+              color: "var(--text-muted)",
+              flexShrink: 0,
+            }}
           >
-            {/* Original value */}
-            <span className="min-w-0 shrink truncate text-sm text-gray-300">
-              {entry.original}
-            </span>
-
-            {/* Arrow */}
-            <ArrowRight className="h-3 w-3 shrink-0 text-gray-600" />
-
-            {/* Replacement value */}
-            <span className="min-w-0 shrink truncate text-sm text-white">
-              {entry.replacement}
-            </span>
-
-            {/* Entity type badge */}
-            <span className="ml-auto shrink-0 rounded-full border border-gray-600 bg-gray-700 px-2 py-0.5 text-[10px] font-medium leading-tight text-gray-300">
-              {entry.entity_type}
-            </span>
-          </div>
-        ))}
-      </div>
+            {entry.entity_type}
+          </span>
+        </div>
+      ))}
     </div>
   );
 }

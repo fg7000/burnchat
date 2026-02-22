@@ -1,14 +1,12 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Coins, Lock, LogIn, Loader2, AlertTriangle, RefreshCw, ExternalLink } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { Lock, LogIn, Loader2, AlertTriangle, RefreshCw, ExternalLink } from "lucide-react";
 import { useSessionStore } from "@/store/session-store";
 import { useUIStore } from "@/store/ui-store";
 import { apiClient } from "@/lib/api-client";
 import { redirectToCheckout } from "@/lib/stripe";
 import { signInWithGoogle } from "@/lib/auth";
-import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -23,13 +21,14 @@ interface CreditPackage {
   credits: number;
   price: number;
   badge?: string;
+  bonus?: string;
 }
 
 const PACKAGES: CreditPackage[] = [
   { id: "starter", name: "Starter", credits: 500, price: 5 },
-  { id: "standard", name: "Standard", credits: 2200, price: 20, badge: "Popular" },
-  { id: "power", name: "Power", credits: 6000, price: 50, badge: "20% bonus" },
-  { id: "pro", name: "Pro", credits: 13000, price: 100, badge: "30% bonus" },
+  { id: "standard", name: "Standard", credits: 2200, price: 20, badge: "most popular" },
+  { id: "power", name: "Power", credits: 6000, price: 50, bonus: "+10%" },
+  { id: "pro", name: "Pro", credits: 13000, price: 100, bonus: "+30%" },
 ];
 
 function formatCredits(n: number): string {
@@ -51,7 +50,6 @@ export default function CreditPurchaseModal() {
   const isSignedIn = !!token;
   const isExhausted = creditModalReason === "exhausted";
 
-  // Poll for balance updates after Stripe checkout opens in new tab
   const startPolling = useCallback(() => {
     if (!token || pollIntervalRef.current) return;
     setIsPolling(true);
@@ -63,7 +61,6 @@ export default function CreditPurchaseModal() {
           setCreditBalance(newBalance);
           setAwaitingPayment(false);
           setShowCreditModal(false);
-          // Stop polling
           if (pollIntervalRef.current) {
             clearInterval(pollIntervalRef.current);
             pollIntervalRef.current = null;
@@ -76,7 +73,6 @@ export default function CreditPurchaseModal() {
     }, POLL_INTERVAL_MS);
   }, [token, setCreditBalance, setShowCreditModal]);
 
-  // Cleanup polling on unmount or when modal closes
   useEffect(() => {
     return () => {
       if (pollIntervalRef.current) {
@@ -86,7 +82,6 @@ export default function CreditPurchaseModal() {
     };
   }, []);
 
-  // Reset awaiting state when modal is reopened
   useEffect(() => {
     if (showCreditModal) {
       setAwaitingPayment(false);
@@ -102,12 +97,10 @@ export default function CreditPurchaseModal() {
       const result = await apiClient.purchaseCredits(selectedPackage, token);
       if (result.checkout_url) {
         if (isExhausted) {
-          // Open in new tab to preserve session state
           window.open(result.checkout_url, "_blank");
           setAwaitingPayment(true);
           startPolling();
         } else {
-          // Normal flow: redirect in same tab
           await redirectToCheckout(result.checkout_url);
         }
       } else {
@@ -147,13 +140,10 @@ export default function CreditPurchaseModal() {
       .then(({ token: jwt, user }) => {
         useSessionStore.getState().setAuth(jwt, user.user_id, user.email, user.credit_balance);
       })
-      .catch(() => {
-        // All flows failed — popup was likely blocked
-      });
+      .catch(() => {});
   };
 
   const handleOpenChange = (open: boolean) => {
-    // Prevent closing the modal when credits are exhausted
     if (!open && isExhausted) return;
     setShowCreditModal(open);
   };
@@ -161,85 +151,67 @@ export default function CreditPurchaseModal() {
   return (
     <Dialog open={showCreditModal} onOpenChange={handleOpenChange}>
       <DialogContent
-        className={cn("sm:max-w-md", isExhausted && "[&>button:last-child]:hidden")}
+        className={isExhausted ? "[&>button:last-child]:hidden" : ""}
         onPointerDownOutside={isExhausted ? (e) => e.preventDefault() : undefined}
         onEscapeKeyDown={isExhausted ? (e) => e.preventDefault() : undefined}
       >
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            {isExhausted ? (
-              <>
-                <AlertTriangle className="h-5 w-5 text-amber-400" />
-                Credits Exhausted
-              </>
-            ) : (
-              <>
-                <Coins className="h-5 w-5 text-gray-300" />
-                Buy Credits
-              </>
-            )}
+          <DialogTitle>
+            <span className="flex items-center gap-2 font-primary" style={{ fontSize: 20, fontWeight: 400 }}>
+              {isExhausted ? (
+                <>
+                  <AlertTriangle style={{ width: 20, height: 20, color: "var(--accent)" }} />
+                  Credits Exhausted
+                </>
+              ) : (
+                "Add credits"
+              )}
+            </span>
           </DialogTitle>
           {isExhausted && (
-            <DialogDescription className="text-gray-400">
+            <DialogDescription>
               Purchase credits to continue chatting. Your session and documents are saved.
             </DialogDescription>
           )}
         </DialogHeader>
 
-        {/* Current balance */}
-        <div className={cn(
-          "rounded-lg border px-4 py-3",
-          isExhausted
-            ? "border-amber-800/50 bg-amber-950/20"
-            : "border-gray-700 bg-gray-800/50"
-        )}>
-          <p className="text-sm text-gray-400">Current balance</p>
-          <p className={cn(
-            "text-2xl font-semibold",
-            isExhausted ? "text-amber-300" : "text-gray-100"
-          )}>
-            {formatCredits(Math.max(0, creditBalance))}{" "}
-            <span className="text-sm font-normal text-gray-500">credits</span>
-          </p>
-        </div>
-
         {isSignedIn ? (
           awaitingPayment ? (
-            /* Waiting for payment completion */
             <div className="flex flex-col items-center gap-4 py-4">
-              <div className="flex items-center gap-2 text-sm text-gray-300">
-                <ExternalLink className="h-4 w-4" />
+              <div className="flex items-center gap-2 font-primary" style={{ fontSize: 13, color: "var(--text-secondary)" }}>
+                <ExternalLink style={{ width: 16, height: 16 }} />
                 <span>Complete your payment in the new tab</span>
               </div>
-              <p className="text-xs text-gray-500 text-center">
+              <p className="font-primary text-center" style={{ fontSize: 12, color: "var(--text-muted)" }}>
                 We&apos;ll detect your payment automatically, or click below to check manually.
               </p>
-              <Button
+              <button
                 onClick={handleManualRefresh}
                 disabled={isPolling}
-                variant="outline"
-                className="gap-2"
+                className="flex items-center gap-2 font-primary"
+                style={{
+                  padding: "8px 16px",
+                  borderRadius: "var(--radius-md)",
+                  background: "var(--surface)",
+                  border: "1px solid var(--border)",
+                  fontSize: 13,
+                  color: "var(--text-secondary)",
+                  cursor: "pointer",
+                }}
               >
                 {isPolling ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    Checking...
-                  </>
+                  <><Loader2 className="animate-spin" style={{ width: 14, height: 14 }} /> Checking...</>
                 ) : (
-                  <>
-                    <RefreshCw className="h-4 w-4" />
-                    Check Balance
-                  </>
+                  <><RefreshCw style={{ width: 14, height: 14 }} /> Check Balance</>
                 )}
-              </Button>
-              <Button
+              </button>
+              <button
                 onClick={() => setAwaitingPayment(false)}
-                variant="ghost"
-                size="sm"
-                className="text-xs text-gray-500"
+                className="font-primary"
+                style={{ fontSize: 12, color: "var(--text-muted)", background: "none", border: "none", cursor: "pointer" }}
               >
                 Choose a different package
-              </Button>
+              </button>
             </div>
           ) : (
             <>
@@ -249,91 +221,97 @@ export default function CreditPurchaseModal() {
                   <button
                     key={pkg.id}
                     onClick={() => setSelectedPackage(pkg.id)}
-                    className={cn(
-                      "flex w-full items-center justify-between rounded-lg border px-4 py-3 text-left transition-colors",
-                      selectedPackage === pkg.id
-                        ? "border-white bg-gray-800"
-                        : "border-gray-700 bg-gray-800/30 hover:border-gray-600"
-                    )}
+                    className="flex w-full items-center justify-between font-primary"
+                    style={{
+                      padding: 16,
+                      borderRadius: "var(--radius-lg)",
+                      background: selectedPackage === pkg.id ? "var(--surface-hover)" : "var(--surface)",
+                      border: selectedPackage === pkg.id ? "1px solid var(--border-hover)" : "1px solid var(--border)",
+                      cursor: "pointer",
+                      textAlign: "left",
+                    }}
                   >
-                    <div className="flex items-center gap-3">
-                      {/* Radio indicator */}
-                      <div
-                        className={cn(
-                          "flex h-4 w-4 items-center justify-center rounded-full border-2",
-                          selectedPackage === pkg.id
-                            ? "border-white"
-                            : "border-gray-600"
-                        )}
-                      >
-                        {selectedPackage === pkg.id && (
-                          <div className="h-2 w-2 rounded-full bg-white" />
-                        )}
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm font-medium text-gray-200">
-                            {pkg.name}
-                          </span>
-                          {pkg.badge && (
-                            <span className="rounded bg-gray-700 px-1.5 py-0.5 text-[10px] font-semibold text-gray-300">
-                              {pkg.badge}
-                            </span>
-                          )}
-                        </div>
-                        <span className="text-xs text-gray-400">
-                          {formatCredits(pkg.credits)} credits
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span style={{ fontSize: 16, fontWeight: 500, color: "var(--text-primary)" }}>
+                          ${pkg.price}
                         </span>
+                        {pkg.badge && (
+                          <span className="font-mono" style={{ fontSize: 10, color: "var(--accent)", padding: "1px 6px", borderRadius: 6, background: "var(--accent-subtle-bg)" }}>
+                            {pkg.badge}
+                          </span>
+                        )}
                       </div>
+                      <span className="font-mono" style={{ fontSize: 13, color: "rgba(255,255,255,0.4)" }}>
+                        {formatCredits(pkg.credits)} credits
+                      </span>
                     </div>
-                    <span className="text-lg font-semibold text-gray-100">
-                      ${pkg.price}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      {pkg.bonus && (
+                        <span className="font-mono" style={{ fontSize: 12, color: "var(--accent)" }}>
+                          {pkg.bonus}
+                        </span>
+                      )}
+                    </div>
                   </button>
                 ))}
               </div>
 
-              {/* Error message */}
               {error && (
-                <p className="text-sm text-gray-400">{error}</p>
+                <p className="font-primary" style={{ fontSize: 13, color: "var(--text-secondary)" }}>{error}</p>
               )}
 
-              {/* Purchase button */}
-              <Button
+              <button
                 onClick={handlePurchase}
                 disabled={isLoading}
-                className="w-full gap-2"
+                className="w-full accent-gradient-bg font-primary flex items-center justify-center gap-2"
+                style={{
+                  padding: "12px 0",
+                  borderRadius: "var(--radius-lg)",
+                  fontSize: 14,
+                  fontWeight: 500,
+                  color: "#0a0a0b",
+                  border: "none",
+                  cursor: isLoading ? "wait" : "pointer",
+                }}
               >
                 {isLoading ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    Processing...
-                  </>
+                  <><Loader2 className="animate-spin" style={{ width: 16, height: 16 }} /> Processing...</>
                 ) : (
                   "Pay with Stripe"
                 )}
-              </Button>
+              </button>
 
-              {/* Footer info */}
-              <div className="flex flex-col items-center gap-1 pt-1">
-                <div className="flex items-center gap-1.5 text-xs text-gray-500">
-                  <Lock className="h-3 w-3" />
+              <div className="flex flex-col items-center gap-1" style={{ paddingTop: 4 }}>
+                <div className="flex items-center gap-1.5 font-mono" style={{ fontSize: 11, color: "var(--text-muted)" }}>
+                  <Lock style={{ width: 12, height: 12 }} />
                   <span>Secure payment via Stripe</span>
                 </div>
-                <p className="text-xs text-gray-500">Credits never expire</p>
+                <p className="font-mono" style={{ fontSize: 11, color: "var(--text-muted)" }}>Credits never expire</p>
               </div>
             </>
           )
         ) : (
-          /* Not signed in state */
           <div className="flex flex-col items-center gap-4 py-4">
-            <p className="text-sm text-gray-400">
+            <p className="font-primary" style={{ fontSize: 13, color: "var(--text-secondary)" }}>
               Sign in first to purchase credits
             </p>
-            <Button onClick={handleSignIn} className="gap-2">
-              <LogIn className="h-4 w-4" />
+            <button
+              onClick={handleSignIn}
+              className="flex items-center gap-2 accent-gradient-bg font-primary"
+              style={{
+                padding: "10px 20px",
+                borderRadius: "var(--radius-md)",
+                fontSize: 13,
+                fontWeight: 500,
+                color: "#0a0a0b",
+                border: "none",
+                cursor: "pointer",
+              }}
+            >
+              <LogIn style={{ width: 16, height: 16 }} />
               Sign in with Google
-            </Button>
+            </button>
           </div>
         )}
       </DialogContent>

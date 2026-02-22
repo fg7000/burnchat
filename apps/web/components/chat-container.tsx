@@ -14,7 +14,6 @@ export default function ChatContainer() {
   const documents = useSessionStore((s) => s.documents);
   const bottomRef = useRef<HTMLDivElement>(null);
 
-  // Auto-scroll to bottom when new messages arrive or content updates
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
@@ -23,36 +22,32 @@ export default function ChatContainer() {
 
   return (
     <ScrollArea className="flex-1 w-full">
-      <div className="flex flex-col max-w-3xl mx-auto px-4 py-6">
+      <div className="flex flex-col" style={{ maxWidth: 680, margin: "0 auto", padding: "24px 16px" }}>
         {isEmpty ? (
           <WelcomeMessage />
         ) : (
           messages.map((message) => {
-            // Check if this is a system message with document info (document upload notification)
             const isDocumentMessage =
               message.role === "system" &&
               message.content.startsWith("[document:");
 
             if (isDocumentMessage) {
-              // Parse document info from system message
-              // Format: [document:filename.pdf]
               const filenameMatch = message.content.match(
                 /\[document:(.+?)\]/
               );
               const filename = filenameMatch ? filenameMatch[1] : "";
-
               const doc = documents.find((d) => d.filename === filename);
               if (!doc) return null;
 
               return (
-                <div key={message.id} className="mb-4">
+                <div key={message.id} style={{ marginBottom: 16 }}>
                   <DocumentCard document={doc} />
                 </div>
               );
             }
 
             return (
-              <div key={message.id} className="mb-4">
+              <div key={message.id} style={{ marginBottom: 16 }}>
                 <ChatMessage
                   message={message}
                   mapping={currentMapping}

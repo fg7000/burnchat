@@ -5,7 +5,6 @@ import { useSessionStore } from "@/store/session-store";
 import { useUIStore } from "@/store/ui-store";
 import { apiClient } from "@/lib/api-client";
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
 import {
   Tooltip,
   TooltipContent,
@@ -60,7 +59,6 @@ export default function ChatInput() {
     const trimmed = text.trim();
     if (!trimmed || isStreaming) return;
 
-    // Block sending when credits are exhausted
     if (creditsExhausted) {
       setCreditModalReason("exhausted");
       setShowCreditModal(true);
@@ -70,20 +68,17 @@ export default function ChatInput() {
     const userMessageId = `user-${Date.now()}`;
     const assistantMessageId = `assistant-${Date.now()}`;
 
-    // Build message history for the API
     const chatHistory = messages
       .filter((m) => m.role === "user" || m.role === "assistant")
       .map((m) => ({ role: m.role, content: m.content }));
     chatHistory.push({ role: "user", content: trimmed });
 
-    // Add user message to store
     addMessage({
       id: userMessageId,
       role: "user",
       content: trimmed,
     });
 
-    // Add empty assistant message with streaming flag
     addMessage({
       id: assistantMessageId,
       role: "assistant",
@@ -94,13 +89,11 @@ export default function ChatInput() {
     setText("");
     setIsStreaming(true);
 
-    // Reset textarea height
     if (textareaRef.current) {
       textareaRef.current.style.height = "auto";
     }
 
     try {
-      // Build options based on session mode
       const options: {
         sessionId?: string | null;
         anonymizedDocument?: string | null;
@@ -108,7 +101,6 @@ export default function ChatInput() {
       } = { token };
 
       if (sessionMode === "quick" && hasDocument) {
-        // In quick mode, pass the anonymized document text
         const doc = documents[0];
         if (doc?.anonymizedText) {
           options.anonymizedDocument = doc.anonymizedText;
@@ -119,7 +111,6 @@ export default function ChatInput() {
         options.sessionId = sessionId;
       }
 
-      // Call streaming chat via Next.js proxy
       const url = "/api/chat";
       const body = JSON.stringify({
         model: selectedModel,
@@ -129,11 +120,7 @@ export default function ChatInput() {
         session_token: options.token,
       });
 
-      const { readerPromise } = apiClient._createSSEReader(
-        url,
-        body,
-        token
-      );
+      const { readerPromise } = apiClient._createSSEReader(url, body, token);
       const reader = await readerPromise;
       const decoder = new TextDecoder();
       let buffer = "";
@@ -166,7 +153,6 @@ export default function ChatInput() {
                   serverBalance
                 );
 
-                // Auto-open purchase modal when credits are exhausted
                 if (data.credits_exhausted) {
                   setCreditModalReason("exhausted");
                   setShowCreditModal(true);
@@ -179,7 +165,6 @@ export default function ChatInput() {
         }
       }
     } catch {
-      // On error, update the assistant message with an error notice
       updateLastAssistantMessage(
         "Something went wrong. Please try again."
       );
@@ -217,103 +202,172 @@ export default function ChatInput() {
   }, [setCreditModalReason, setShowCreditModal]);
 
   return (
-    <div className="relative bg-gray-900 border-t border-gray-800 p-3">
+    <div className="relative z-10" style={{ padding: "12px 16px 16px" }}>
       <AttachmentMenu />
-      <div className="max-w-3xl mx-auto">
+      <div style={{ maxWidth: 680, margin: "0 auto" }}>
         {/* Credits exhausted banner */}
-        {creditsExhausted ? (
-          <div className="mb-3 rounded-lg border border-amber-800/50 bg-amber-950/30 px-4 py-3">
+        {creditsExhausted && (
+          <div
+            style={{
+              marginBottom: 12,
+              padding: "12px 16px",
+              borderRadius: "var(--radius-lg)",
+              background: "var(--accent-subtle-bg)",
+              border: "1px solid var(--accent-subtle-border)",
+            }}
+          >
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-2">
-                <Coins className="h-4 w-4 text-amber-400 shrink-0" />
-                <p className="text-sm text-amber-200">
+                <Coins style={{ width: 16, height: 16, color: "var(--accent)", flexShrink: 0 }} />
+                <p className="font-primary" style={{ fontSize: 13, color: "var(--text-secondary)" }}>
                   You&apos;ve run out of credits. Purchase more to continue chatting.
-                  Your session and documents are saved.
                 </p>
               </div>
-              <Button
+              <button
                 onClick={handleBuyCredits}
-                size="sm"
-                className="shrink-0 bg-amber-600 hover:bg-amber-500 text-white"
+                className="accent-gradient-bg font-primary"
+                style={{
+                  flexShrink: 0,
+                  padding: "6px 14px",
+                  borderRadius: "var(--radius-sm)",
+                  fontSize: 12,
+                  fontWeight: 500,
+                  color: "#0a0a0b",
+                  border: "none",
+                  cursor: "pointer",
+                }}
               >
                 Buy Credits
-              </Button>
+              </button>
             </div>
           </div>
-        ) : (
-          /* Credit balance indicator when document loaded */
-          hasDocument && (
-            <div className="text-xs text-gray-500 mb-2 text-center">
-              Credit balance: {creditBalance}
-            </div>
-          )
         )}
 
-        <div className="flex items-end gap-2">
+        {/* Main input container */}
+        <div
+          className={cn(
+            "flex items-end gap-1",
+            "focus-within:border-[rgba(255,107,53,0.2)]"
+          )}
+          style={{
+            background: "var(--surface)",
+            border: "1px solid var(--border)",
+            borderRadius: "var(--radius-lg)",
+            padding: 4,
+          }}
+        >
           {/* Attachment button */}
-          <Button
-            variant="ghost"
-            size="icon"
-            className="shrink-0 h-10 w-10 rounded-full text-gray-400 hover:text-gray-200"
+          <button
             onClick={() => setShowAttachmentMenu(true)}
             disabled={isStreaming}
+            style={{
+              width: 36,
+              height: 36,
+              borderRadius: "var(--radius-md)",
+              background: "var(--surface)",
+              border: "1px solid var(--border)",
+              color: "var(--text-secondary)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              flexShrink: 0,
+              cursor: isStreaming ? "not-allowed" : "pointer",
+              opacity: isStreaming ? 0.5 : 1,
+            }}
           >
-            <Plus className="h-5 w-5" />
-          </Button>
+            <Plus style={{ width: 18, height: 18 }} />
+          </button>
 
           {/* Textarea */}
-          <div className="flex-1 relative">
-            <textarea
-              ref={textareaRef}
-              value={text}
-              onChange={handleInputChange}
-              onKeyDown={handleKeyDown}
-              placeholder={creditsExhausted ? "Purchase credits to continue..." : "Ask about your document..."}
-              disabled={isStreaming || creditsExhausted}
-              rows={1}
-              className={cn(
-                "w-full resize-none rounded-xl bg-gray-800 border border-gray-700 px-4 py-2.5",
-                "text-gray-100 placeholder:text-gray-500 text-sm",
-                "focus:outline-none focus:ring-1 focus:ring-gray-500 focus:border-gray-500",
-                "disabled:opacity-50 disabled:cursor-not-allowed",
-                "scrollbar-thin scrollbar-thumb-gray-700"
-              )}
-              style={{ maxHeight: `${24 * 5}px` }}
-            />
-          </div>
+          <textarea
+            ref={textareaRef}
+            value={text}
+            onChange={handleInputChange}
+            onKeyDown={handleKeyDown}
+            placeholder={creditsExhausted ? "Purchase credits to continue..." : "Say anything. It\u2019s anonymous."}
+            disabled={isStreaming || creditsExhausted}
+            rows={1}
+            className="font-primary"
+            style={{
+              flex: 1,
+              resize: "none",
+              background: "transparent",
+              border: "none",
+              outline: "none",
+              padding: "8px 8px",
+              fontSize: 14,
+              fontWeight: 300,
+              color: "var(--text-primary)",
+              maxHeight: 24 * 5,
+              lineHeight: "24px",
+            }}
+          />
 
           {/* Mic button */}
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="shrink-0 h-10 w-10 rounded-full text-gray-600 cursor-not-allowed"
+                <button
                   disabled
+                  style={{
+                    width: 36,
+                    height: 36,
+                    borderRadius: "var(--radius-md)",
+                    background: "var(--surface)",
+                    border: "1px solid var(--border)",
+                    color: "var(--text-muted)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    flexShrink: 0,
+                    cursor: "not-allowed",
+                    opacity: 0.5,
+                  }}
                 >
-                  <Mic className="h-5 w-5" />
-                </Button>
+                  <Mic style={{ width: 16, height: 16 }} />
+                </button>
               </TooltipTrigger>
               <TooltipContent>Voice coming soon</TooltipContent>
             </Tooltip>
           </TooltipProvider>
 
           {/* Send button */}
-          <Button
-            variant="ghost"
-            size="icon"
-            className={cn(
-              "shrink-0 h-10 w-10 rounded-full transition-colors",
-              hasText && !isStreaming
-                ? "bg-white text-black hover:bg-gray-200"
-                : "bg-gray-700 text-gray-500"
-            )}
+          <button
             onClick={handleSend}
             disabled={!hasText || isStreaming || creditsExhausted}
+            style={{
+              width: 36,
+              height: 36,
+              borderRadius: "var(--radius-md)",
+              background: hasText && !isStreaming ? "var(--accent-gradient)" : "var(--surface)",
+              backgroundImage: hasText && !isStreaming ? "linear-gradient(135deg, #ff6b35, #ff3c1e)" : "none",
+              border: hasText && !isStreaming ? "none" : "1px solid var(--border)",
+              color: hasText && !isStreaming ? "#0a0a0b" : "var(--text-muted)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              flexShrink: 0,
+              cursor: hasText && !isStreaming ? "pointer" : "default",
+            }}
           >
-            <ArrowUp className="h-5 w-5" />
-          </Button>
+            <ArrowUp style={{ width: 18, height: 18 }} />
+          </button>
+        </div>
+
+        {/* Footer */}
+        <div
+          className="flex items-center justify-center gap-2 font-mono"
+          style={{
+            marginTop: 10,
+            fontSize: 10,
+            color: "var(--text-muted)",
+          }}
+        >
+          <span>zero persistence</span>
+          <span style={{ width: 3, height: 3, borderRadius: "50%", background: "var(--accent)", opacity: 0.5 }} />
+          <span>all PII stripped</span>
+          <span style={{ width: 3, height: 3, borderRadius: "50%", background: "var(--accent)", opacity: 0.5 }} />
+          <span>nothing stored</span>
         </div>
       </div>
     </div>

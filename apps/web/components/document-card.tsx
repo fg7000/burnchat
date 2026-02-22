@@ -10,7 +10,6 @@ import {
   CheckCircle2,
   AlertCircle,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
 import { type DocumentInfo } from "@/store/session-store";
 import { AnonymizationDiff } from "@/components/anonymization-diff";
 
@@ -24,28 +23,28 @@ const statusConfig: Record<
 > = {
   parsing: {
     label: "Parsing document...",
-    icon: <Loader2 className="h-3.5 w-3.5 animate-spin" />,
-    color: "text-gray-400",
+    icon: <Loader2 className="animate-spin" style={{ width: 14, height: 14 }} />,
+    color: "var(--text-secondary)",
   },
   anonymizing: {
     label: "Anonymizing content...",
-    icon: <Loader2 className="h-3.5 w-3.5 animate-spin" />,
-    color: "text-gray-300",
+    icon: <Loader2 className="animate-spin" style={{ width: 14, height: 14 }} />,
+    color: "var(--text-secondary)",
   },
   embedding: {
     label: "Creating embeddings...",
-    icon: <Loader2 className="h-3.5 w-3.5 animate-spin" />,
-    color: "text-gray-300",
+    icon: <Loader2 className="animate-spin" style={{ width: 14, height: 14 }} />,
+    color: "var(--text-secondary)",
   },
   ready: {
     label: "Ready",
-    icon: <CheckCircle2 className="h-3.5 w-3.5" />,
-    color: "text-white",
+    icon: <CheckCircle2 style={{ width: 14, height: 14 }} />,
+    color: "var(--accent)",
   },
   error: {
     label: "Error",
-    icon: <AlertCircle className="h-3.5 w-3.5" />,
-    color: "text-gray-400",
+    icon: <AlertCircle style={{ width: 14, height: 14 }} />,
+    color: "var(--text-secondary)",
   },
 };
 
@@ -60,43 +59,78 @@ export function DocumentCard({ document }: DocumentCardProps) {
   );
 
   return (
-    <div className="rounded-lg border border-gray-700 bg-gray-800/50 p-3">
+    <div
+      style={{
+        width: "100%",
+        background: "var(--surface)",
+        border: "1px solid var(--border)",
+        borderRadius: "var(--radius-lg)",
+        padding: 16,
+        position: "relative",
+        overflow: "hidden",
+      }}
+    >
       {/* Header row */}
       <div className="flex items-start justify-between gap-2">
-        <div className="flex items-center gap-2 min-w-0">
-          <FileText className="h-4 w-4 shrink-0 text-gray-400" />
-          <span className="truncate text-sm font-medium text-gray-200">
-            {document.filename}
-          </span>
+        <div className="flex items-center gap-3 min-w-0">
+          <div
+            className="flex items-center justify-center"
+            style={{
+              width: 36,
+              height: 36,
+              borderRadius: "var(--radius-sm)",
+              background: "var(--accent-subtle-bg)",
+              flexShrink: 0,
+            }}
+          >
+            <FileText style={{ width: 16, height: 16, color: "var(--accent)" }} />
+          </div>
+          <div className="min-w-0">
+            <p className="truncate font-primary" style={{ fontSize: 14, color: "var(--text-primary)", fontWeight: 400 }}>
+              {document.filename}
+            </p>
+            <p className="font-mono" style={{ fontSize: 12, color: "var(--text-secondary)", marginTop: 2 }}>
+              {status.label}
+            </p>
+          </div>
         </div>
-        <div className={cn("flex items-center gap-1 text-xs shrink-0", status.color)}>
+        <div className="flex items-center gap-1 shrink-0" style={{ color: status.color }}>
           {status.icon}
-          <span>{status.label}</span>
         </div>
       </div>
 
       {/* Error detail */}
       {document.status === "error" && document.errorDetail && (
-        <p className="mt-1.5 text-xs text-gray-500">{document.errorDetail}</p>
+        <p className="font-primary" style={{ marginTop: 8, fontSize: 12, color: "var(--text-secondary)" }}>
+          {document.errorDetail}
+        </p>
       )}
 
       {/* Progress bar */}
       {document.progress !== undefined &&
         document.status !== "ready" &&
         document.status !== "error" && (
-          <div className="mt-2 space-y-1">
-            <div className="h-1.5 w-full rounded-full bg-gray-700 overflow-hidden">
+          <div style={{ marginTop: 12 }}>
+            <div
+              style={{
+                height: 2,
+                width: "100%",
+                borderRadius: 1,
+                background: "var(--border)",
+                overflow: "hidden",
+              }}
+            >
               <div
-                className={cn(
-                  "h-full rounded-full transition-all duration-300 ease-out",
-                  document.status === "parsing" && "bg-gray-400",
-                  document.status === "anonymizing" && "bg-gray-300",
-                  document.status === "embedding" && "bg-white"
-                )}
-                style={{ width: `${Math.min(document.progress, 100)}%` }}
+                className="accent-gradient-bg"
+                style={{
+                  height: "100%",
+                  borderRadius: 1,
+                  width: `${Math.min(document.progress, 100)}%`,
+                  transition: "width 0.3s ease-out",
+                }}
               />
             </div>
-            <div className="flex items-center justify-between text-[10px] text-gray-500">
+            <div className="flex items-center justify-between font-mono" style={{ marginTop: 4, fontSize: 10, color: "var(--text-muted)" }}>
               <span>{document.progressDetail ?? ""}</span>
               <span>{Math.round(document.progress)}%</span>
             </div>
@@ -105,15 +139,32 @@ export function DocumentCard({ document }: DocumentCardProps) {
 
       {/* Entity summary */}
       {document.entitiesFound.length > 0 && (
-        <div className="mt-2 flex flex-wrap gap-1.5">
-          <div className="flex items-center gap-1 rounded bg-gray-700 px-2 py-0.5 text-xs text-gray-200">
-            <Shield className="h-3 w-3" />
+        <div className="flex flex-wrap gap-1.5" style={{ marginTop: 12 }}>
+          <div
+            className="flex items-center gap-1 font-mono"
+            style={{
+              padding: "2px 8px",
+              borderRadius: "var(--radius-sm)",
+              background: "var(--accent-subtle-bg)",
+              fontSize: 11,
+              color: "var(--accent)",
+            }}
+          >
+            <Shield style={{ width: 12, height: 12 }} />
             {totalEntities} entities found
           </div>
           {document.entitiesFound.map((entity) => (
             <span
               key={entity.type}
-              className="rounded bg-gray-700 px-2 py-0.5 text-xs text-gray-400"
+              className="font-mono"
+              style={{
+                padding: "2px 8px",
+                borderRadius: "var(--radius-sm)",
+                background: "var(--surface)",
+                border: "1px solid var(--border)",
+                fontSize: 11,
+                color: "var(--text-secondary)",
+              }}
             >
               {entity.type}: {entity.count}
             </span>
@@ -123,7 +174,7 @@ export function DocumentCard({ document }: DocumentCardProps) {
 
       {/* Token info */}
       {document.tokenCount > 0 && (
-        <p className="mt-1.5 text-xs text-gray-500">
+        <p className="font-mono" style={{ marginTop: 8, fontSize: 11, color: "var(--text-muted)" }}>
           {document.tokenCount.toLocaleString()} tokens
           {document.chunkCount ? ` \u00b7 ${document.chunkCount} chunks` : ""}
         </p>
@@ -131,23 +182,37 @@ export function DocumentCard({ document }: DocumentCardProps) {
 
       {/* Expandable sections */}
       {document.status === "ready" && (
-        <div className="mt-3 space-y-2">
-          {/* View anonymized version */}
+        <div style={{ marginTop: 12 }} className="space-y-2">
           {document.anonymizedText && (
             <div>
               <button
                 onClick={() => setShowAnonymized(!showAnonymized)}
-                className="flex w-full items-center gap-1 text-xs text-gray-400 transition-colors hover:text-gray-200"
+                className="flex w-full items-center gap-1 font-primary"
+                style={{ fontSize: 12, color: "var(--text-secondary)", background: "none", border: "none", cursor: "pointer", padding: 0 }}
               >
                 {showAnonymized ? (
-                  <ChevronUp className="h-3.5 w-3.5" />
+                  <ChevronUp style={{ width: 14, height: 14 }} />
                 ) : (
-                  <ChevronDown className="h-3.5 w-3.5" />
+                  <ChevronDown style={{ width: 14, height: 14 }} />
                 )}
                 View anonymized version
               </button>
               {showAnonymized && (
-                <div className="mt-1.5 max-h-48 overflow-y-auto rounded border border-gray-700 bg-gray-900 p-2 text-xs text-gray-300 whitespace-pre-wrap">
+                <div
+                  className="font-mono"
+                  style={{
+                    marginTop: 6,
+                    maxHeight: 192,
+                    overflowY: "auto",
+                    borderRadius: "var(--radius-sm)",
+                    border: "1px solid var(--border)",
+                    background: "var(--bg)",
+                    padding: 8,
+                    fontSize: 12,
+                    color: "var(--text-secondary)",
+                    whiteSpace: "pre-wrap",
+                  }}
+                >
                   {document.anonymizedText.length > 500
                     ? document.anonymizedText.slice(0, 500) + "\u2026"
                     : document.anonymizedText}
@@ -156,22 +221,22 @@ export function DocumentCard({ document }: DocumentCardProps) {
             </div>
           )}
 
-          {/* View what was changed */}
           {document.mapping.length > 0 && (
             <div>
               <button
                 onClick={() => setShowChanges(!showChanges)}
-                className="flex w-full items-center gap-1 text-xs text-gray-400 transition-colors hover:text-gray-200"
+                className="flex w-full items-center gap-1 font-primary"
+                style={{ fontSize: 12, color: "var(--text-secondary)", background: "none", border: "none", cursor: "pointer", padding: 0 }}
               >
                 {showChanges ? (
-                  <ChevronUp className="h-3.5 w-3.5" />
+                  <ChevronUp style={{ width: 14, height: 14 }} />
                 ) : (
-                  <ChevronDown className="h-3.5 w-3.5" />
+                  <ChevronDown style={{ width: 14, height: 14 }} />
                 )}
                 View what was changed ({document.mapping.length} replacements)
               </button>
               {showChanges && (
-                <div className="mt-1.5">
+                <div style={{ marginTop: 6 }}>
                   <AnonymizationDiff mapping={document.mapping} />
                 </div>
               )}

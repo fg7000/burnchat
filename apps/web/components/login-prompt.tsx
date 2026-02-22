@@ -4,8 +4,6 @@ import React from "react";
 import { useSessionStore } from "@/store/session-store";
 import { useUIStore } from "@/store/ui-store";
 import { signInWithGoogle } from "@/lib/auth";
-import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
 import { LogIn, CreditCard } from "lucide-react";
 
 export default function LoginPrompt() {
@@ -21,9 +19,7 @@ export default function LoginPrompt() {
       .then(({ token: jwt, user }) => {
         setAuth(jwt, user.user_id, user.email, user.credit_balance);
       })
-      .catch(() => {
-        // All flows failed — popup was likely blocked
-      });
+      .catch(() => {});
   };
 
   const handleBuyCredits = () => {
@@ -33,34 +29,63 @@ export default function LoginPrompt() {
   return (
     <div className="flex items-center justify-center p-8">
       <div
-        className={cn(
-          "bg-gray-800/50 border border-gray-700 rounded-lg p-6",
-          "max-w-sm w-full text-center space-y-4"
-        )}
+        style={{
+          background: "var(--surface)",
+          border: "1px solid var(--border)",
+          borderRadius: "var(--radius-lg)",
+          padding: 24,
+          maxWidth: 360,
+          width: "100%",
+          textAlign: "center",
+        }}
       >
-        <div className="text-2xl font-semibold text-gray-100">
+        <div className="font-primary" style={{ fontSize: 20, fontWeight: 500, color: "var(--text-primary)", marginBottom: 16 }}>
           You&apos;re out of credits!
         </div>
 
         {!isSignedIn ? (
           <>
-            <p className="text-sm text-gray-400">
+            <p className="font-primary" style={{ fontSize: 13, color: "var(--text-secondary)", marginBottom: 16 }}>
               Sign in with Google to buy more credits
             </p>
-            <Button onClick={handleGoogleSignIn} className="w-full gap-2">
-              <LogIn className="h-4 w-4" />
+            <button
+              onClick={handleGoogleSignIn}
+              className="w-full flex items-center justify-center gap-2 accent-gradient-bg font-primary"
+              style={{
+                padding: "10px 0",
+                borderRadius: "var(--radius-md)",
+                fontSize: 13,
+                fontWeight: 500,
+                color: "#0a0a0b",
+                border: "none",
+                cursor: "pointer",
+              }}
+            >
+              <LogIn style={{ width: 16, height: 16 }} />
               Sign in with Google
-            </Button>
+            </button>
           </>
         ) : (
           <>
-            <p className="text-sm text-gray-400">
+            <p className="font-primary" style={{ fontSize: 13, color: "var(--text-secondary)", marginBottom: 16 }}>
               Buy more credits to continue
             </p>
-            <Button onClick={handleBuyCredits} className="w-full gap-2">
-              <CreditCard className="h-4 w-4" />
+            <button
+              onClick={handleBuyCredits}
+              className="w-full flex items-center justify-center gap-2 accent-gradient-bg font-primary"
+              style={{
+                padding: "10px 0",
+                borderRadius: "var(--radius-md)",
+                fontSize: 13,
+                fontWeight: 500,
+                color: "#0a0a0b",
+                border: "none",
+                cursor: "pointer",
+              }}
+            >
+              <CreditCard style={{ width: 16, height: 16 }} />
               Buy Credits
-            </Button>
+            </button>
           </>
         )}
       </div>

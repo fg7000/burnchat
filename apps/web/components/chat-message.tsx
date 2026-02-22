@@ -2,10 +2,8 @@
 
 import { useState, useMemo } from "react";
 import { Eye, EyeOff, Coins } from "lucide-react";
-import { cn } from "@/lib/utils";
 import { type ChatMessage as ChatMessageType, type MappingEntry } from "@/store/session-store";
 import { deAnonymize } from "@/lib/anonymizer/de-anonymizer";
-import { Button } from "@/components/ui/button";
 
 interface ChatMessageProps {
   message: ChatMessageType;
@@ -16,9 +14,9 @@ interface ChatMessageProps {
 function StreamingDots() {
   return (
     <span className="inline-flex items-center gap-0.5">
-      <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-gray-400 [animation-delay:-0.3s]" />
-      <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-gray-400 [animation-delay:-0.15s]" />
-      <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-gray-400" />
+      <span className="h-1.5 w-1.5 animate-bounce rounded-full" style={{ background: "var(--text-secondary)", animationDelay: "-0.3s" }} />
+      <span className="h-1.5 w-1.5 animate-bounce rounded-full" style={{ background: "var(--text-secondary)", animationDelay: "-0.15s" }} />
+      <span className="h-1.5 w-1.5 animate-bounce rounded-full" style={{ background: "var(--text-secondary)" }} />
     </span>
   );
 }
@@ -37,34 +35,27 @@ export function ChatMessage({ message, mapping, showRealNames: initialShowReal }
   }, [message.content, mapping, localShowReal, isAssistant]);
 
   return (
-    <div
-      className={cn(
-        "flex w-full",
-        isUser ? "justify-end" : "justify-start"
-      )}
-    >
+    <div className={`flex w-full ${isUser ? "justify-end" : "justify-start"}`}>
       <div
-        className={cn(
-          "max-w-[80%] rounded-lg px-4 py-3",
-          isUser
-            ? "bg-gray-800 border border-gray-600"
-            : "bg-gray-800"
-        )}
+        className="font-primary"
+        style={{
+          maxWidth: "75%",
+          padding: "12px 16px",
+          borderRadius: isUser ? "14px 14px 4px 14px" : "14px 14px 14px 4px",
+          ...(isUser
+            ? {
+                backgroundImage: "linear-gradient(135deg, #ff6b35, #ff3c1e)",
+                color: "#0a0a0b",
+              }
+            : {
+                background: "var(--surface)",
+                border: "1px solid var(--border)",
+                color: "var(--text-primary)",
+              }),
+        }}
       >
-        {/* Message label */}
-        <div className="mb-1">
-          <span
-            className={cn(
-              "text-xs font-medium",
-              isUser ? "text-gray-200" : "text-gray-400"
-            )}
-          >
-            {isUser ? "You" : "Assistant"}
-          </span>
-        </div>
-
         {/* Message content */}
-        <div className="text-sm text-gray-200 whitespace-pre-wrap break-words">
+        <div style={{ fontSize: 14, fontWeight: 300, whiteSpace: "pre-wrap", wordBreak: "break-word", lineHeight: 1.6 }}>
           {displayContent}
           {message.isStreaming && (
             <span className="ml-1 inline-block">
@@ -75,40 +66,45 @@ export function ChatMessage({ message, mapping, showRealNames: initialShowReal }
 
         {/* Assistant message footer */}
         {isAssistant && !message.isStreaming && (
-          <div className="mt-2 flex items-center gap-3 border-t border-gray-700/50 pt-2">
-            {/* Show real names toggle */}
+          <div
+            className="flex items-center gap-3"
+            style={{
+              marginTop: 8,
+              paddingTop: 8,
+              borderTop: "1px solid var(--border)",
+            }}
+          >
             {mapping && mapping.length > 0 && (
-              <Button
-                variant="ghost"
-                size="sm"
+              <button
                 onClick={() => setLocalShowReal(!localShowReal)}
-                className={cn(
-                  "h-6 gap-1 px-2 text-xs",
-                  localShowReal
-                    ? "text-white hover:text-gray-200"
-                    : "text-gray-500 hover:text-gray-300"
-                )}
+                className="flex items-center gap-1 font-primary"
+                style={{
+                  fontSize: 11,
+                  color: localShowReal ? "var(--text-primary)" : "var(--text-muted)",
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                  padding: 0,
+                }}
               >
                 {localShowReal ? (
-                  <EyeOff className="h-3 w-3" />
+                  <EyeOff style={{ width: 12, height: 12 }} />
                 ) : (
-                  <Eye className="h-3 w-3" />
+                  <Eye style={{ width: 12, height: 12 }} />
                 )}
                 {localShowReal ? "Hide real names" : "Show real names"}
-              </Button>
+              </button>
             )}
 
-            {/* Credits used */}
             {message.creditsUsed != null && message.creditsUsed > 0 && (
-              <span className="flex items-center gap-1 text-xs text-gray-500">
-                <Coins className="h-3 w-3" />
+              <span className="flex items-center gap-1 font-mono" style={{ fontSize: 11, color: "var(--text-muted)" }}>
+                <Coins style={{ width: 12, height: 12 }} />
                 {message.creditsUsed} credit{message.creditsUsed !== 1 ? "s" : ""}
               </span>
             )}
 
-            {/* Token count */}
             {message.tokenCount && (
-              <span className="text-xs text-gray-500">
+              <span className="font-mono" style={{ fontSize: 11, color: "var(--text-muted)" }}>
                 {message.tokenCount.input + message.tokenCount.output} tokens
               </span>
             )}

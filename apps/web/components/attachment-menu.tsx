@@ -4,15 +4,12 @@ import React, { useState, useRef, useEffect, useCallback } from "react";
 import { useUIStore } from "@/store/ui-store";
 import { useSessionStore } from "@/store/session-store";
 import { apiClient } from "@/lib/api-client";
-import { cn } from "@/lib/utils";
 import { FileText, Link, Folder, FileEdit, X } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { parseImage } from "@/lib/parsers/ocr-parser";
 
 type InlineMode = null | "url" | "gdrive" | "text";
 
 function getErrorMessage(error: unknown): string {
-  // Log full error details for debugging
   console.error("[attachment-menu] Error details:", {
     type: error?.constructor?.name,
     message: error instanceof Error ? error.message : String(error),
@@ -56,7 +53,6 @@ export default function AttachmentMenu() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
-  // Close on outside click
   useEffect(() => {
     if (!showAttachmentMenu) return;
 
@@ -78,7 +74,6 @@ export default function AttachmentMenu() {
     setInlineValue("");
   }, [setShowAttachmentMenu]);
 
-  // Parse a single file based on its type
   const parseFile = async (
     file: File,
     onProgress?: (pct: number, detail?: string) => void
@@ -95,11 +90,9 @@ export default function AttachmentMenu() {
       name.endsWith(".docx") ||
       name.endsWith(".txt")
     ) {
-      // Parse via backend (Python) — avoids browser bundling issues
       const result = await apiClient.parseFile(file, token);
       return result.text;
     } else {
-      // Fallback: read as text
       return file.text();
     }
   };
@@ -116,11 +109,9 @@ export default function AttachmentMenu() {
 
     try {
       if (fileArray.length === 1) {
-        // Single file path
         const file = fileArray[0];
         const filename = file.name;
 
-        // Add document with parsing status
         addDocument({
           filename,
           text: "",
@@ -133,7 +124,6 @@ export default function AttachmentMenu() {
           progressDetail: "Starting...",
         });
 
-        // Add system message for document card
         addMessage({
           id: `doc-${Date.now()}`,
           role: "system",
@@ -144,7 +134,7 @@ export default function AttachmentMenu() {
         try {
           text = await parseFile(file, (pct, detail) => {
             updateDocumentStatus(filename, "parsing", {
-              progress: Math.round(pct * 0.5), // parsing = 0-50%
+              progress: Math.round(pct * 0.5),
               progressDetail: detail,
             });
           });
@@ -161,11 +151,10 @@ export default function AttachmentMenu() {
           progressDetail: "Anonymizing...",
         });
 
-        // Always anonymize via chunked API (handles large files without timeout)
         setSessionMode("quick");
         const result = await apiClient.anonymizeChunked(text, token, (pct, detail) => {
           updateDocumentStatus(filename, "anonymizing", {
-            progress: 50 + Math.round(pct * 0.5), // anonymizing = 50-100%
+            progress: 50 + Math.round(pct * 0.5),
             progressDetail: detail,
           });
         });
@@ -179,7 +168,6 @@ export default function AttachmentMenu() {
         });
         setCurrentMapping(result.mapping);
       } else {
-        // Multiple files -> Session Mode
         setSessionMode("session");
 
         const parsedDocs: { filename: string; text: string }[] = [];
@@ -223,7 +211,6 @@ export default function AttachmentMenu() {
           parsedDocs.push({ filename, text });
         }
 
-        // Anonymize each document via chunked API
         setSessionMode("quick");
         let combinedMapping: { original: string; replacement: string; entity_type: string }[] = [];
 
@@ -263,7 +250,6 @@ export default function AttachmentMenu() {
       }
     } finally {
       setIsProcessing(false);
-      // Reset file input
       if (fileInputRef.current) {
         fileInputRef.current.value = "";
       }
@@ -298,7 +284,6 @@ export default function AttachmentMenu() {
         content: `[document:${filename}]`,
       });
 
-      // Ingest the URL
       const ingestResult = await apiClient.ingestUrl(url, token);
       const text = ingestResult.text ?? "";
 
@@ -308,7 +293,6 @@ export default function AttachmentMenu() {
         progressDetail: "Anonymizing...",
       });
 
-      // Anonymize the result
       setSessionMode("quick");
       const anonResult = await apiClient.anonymizeChunked(text, token);
 
@@ -356,7 +340,6 @@ export default function AttachmentMenu() {
         content: `[document:${gdriveFilename}]`,
       });
 
-      // Ingest the GDrive folder
       updateDocumentStatus(gdriveFilename, "embedding", {
         progress: 20,
         progressDetail: "Downloading files...",
@@ -374,7 +357,6 @@ export default function AttachmentMenu() {
         progressDetail: "Processing documents...",
       });
 
-      // Process through documents pipeline
       const processResult = await apiClient.processDocuments(
         result.documents ?? [],
         result.session_id ?? sessionId,
@@ -428,7 +410,6 @@ export default function AttachmentMenu() {
         content: `[document:${pasteFilename}]`,
       });
 
-      // Anonymize directly (chunked for large texts)
       setSessionMode("quick");
       const result = await apiClient.anonymizeChunked(pastedText, token);
 
@@ -449,16 +430,50 @@ export default function AttachmentMenu() {
 
   if (!showAttachmentMenu) return null;
 
+  const menuItemStyle: React.CSSProperties = {
+    display: "flex",
+    alignItems: "center",
+    gap: 12,
+    width: "100%",
+    padding: "10px 12px",
+    borderRadius: "var(--radius-sm)",
+    fontSize: 13,
+    fontFamily: "var(--font-primary)",
+    color: "var(--text-secondary)",
+    background: "transparent",
+    border: "none",
+    cursor: "pointer",
+    textAlign: "left" as const,
+  };
+
+  const inputStyle: React.CSSProperties = {
+    width: "100%",
+    background: "var(--bg)",
+    border: "1px solid var(--border)",
+    borderRadius: "var(--radius-sm)",
+    padding: "8px 12px",
+    fontSize: 13,
+    fontFamily: "var(--font-primary)",
+    color: "var(--text-primary)",
+    outline: "none",
+  };
+
   return (
     <div
       ref={menuRef}
-      className={cn(
-        "absolute bottom-16 left-3 z-50",
-        "bg-gray-800 rounded-lg border border-gray-700 shadow-xl p-2",
-        "min-w-[240px]"
-      )}
+      style={{
+        position: "absolute",
+        bottom: 64,
+        left: 12,
+        zIndex: 50,
+        background: "#111113",
+        borderRadius: "var(--radius-lg)",
+        border: "1px solid var(--border)",
+        padding: 6,
+        minWidth: 240,
+        boxShadow: "0 8px 32px rgba(0,0,0,0.4)",
+      }}
     >
-      {/* Hidden file input */}
       <input
         ref={fileInputRef}
         type="file"
@@ -471,56 +486,60 @@ export default function AttachmentMenu() {
       {inlineMode === null && (
         <div className="flex flex-col gap-0.5">
           <button
-            className="flex items-center gap-3 w-full px-3 py-2.5 rounded-md text-sm text-gray-200 hover:bg-gray-700 transition-colors text-left"
+            style={menuItemStyle}
             onClick={() => fileInputRef.current?.click()}
             disabled={isProcessing}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "var(--surface-hover)"; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}
           >
-            <FileText className="h-4 w-4 text-gray-400" />
+            <FileText style={{ width: 16, height: 16, color: "var(--text-muted)" }} />
             Upload file(s)
           </button>
 
           <button
-            className="flex items-center gap-3 w-full px-3 py-2.5 rounded-md text-sm text-gray-200 hover:bg-gray-700 transition-colors text-left"
+            style={menuItemStyle}
             onClick={() => setInlineMode("url")}
             disabled={isProcessing}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "var(--surface-hover)"; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}
           >
-            <Link className="h-4 w-4 text-gray-400" />
+            <Link style={{ width: 16, height: 16, color: "var(--text-muted)" }} />
             Paste URL
           </button>
 
           <button
-            className="flex items-center gap-3 w-full px-3 py-2.5 rounded-md text-sm text-gray-200 hover:bg-gray-700 transition-colors text-left"
+            style={menuItemStyle}
             onClick={() => setInlineMode("gdrive")}
             disabled={isProcessing}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "var(--surface-hover)"; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}
           >
-            <Folder className="h-4 w-4 text-gray-400" />
+            <Folder style={{ width: 16, height: 16, color: "var(--text-muted)" }} />
             Google Drive folder
           </button>
 
           <button
-            className="flex items-center gap-3 w-full px-3 py-2.5 rounded-md text-sm text-gray-200 hover:bg-gray-700 transition-colors text-left"
+            style={menuItemStyle}
             onClick={() => setInlineMode("text")}
             disabled={isProcessing}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "var(--surface-hover)"; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}
           >
-            <FileEdit className="h-4 w-4 text-gray-400" />
+            <FileEdit style={{ width: 16, height: 16, color: "var(--text-muted)" }} />
             Paste text
           </button>
         </div>
       )}
 
-      {/* Inline URL input */}
       {inlineMode === "url" && (
         <div className="flex flex-col gap-2 p-1">
           <div className="flex items-center justify-between">
-            <span className="text-xs text-gray-400 font-medium">Paste URL</span>
+            <span className="font-mono" style={{ fontSize: 11, color: "var(--text-muted)" }}>Paste URL</span>
             <button
-              onClick={() => {
-                setInlineMode(null);
-                setInlineValue("");
-              }}
-              className="text-gray-500 hover:text-gray-300"
+              onClick={() => { setInlineMode(null); setInlineValue(""); }}
+              style={{ color: "var(--text-muted)", background: "none", border: "none", cursor: "pointer" }}
             >
-              <X className="h-3.5 w-3.5" />
+              <X style={{ width: 14, height: 14 }} />
             </button>
           </div>
           <input
@@ -528,38 +547,39 @@ export default function AttachmentMenu() {
             value={inlineValue}
             onChange={(e) => setInlineValue(e.target.value)}
             placeholder="https://example.com/article"
-            className="w-full bg-gray-900 border border-gray-600 rounded-md px-3 py-2 text-sm text-gray-200 placeholder:text-gray-500 focus:outline-none focus:ring-1 focus:ring-gray-500"
+            style={inputStyle}
             autoFocus
-            onKeyDown={(e) => {
-              if (e.key === "Enter") handleUrlSubmit();
-            }}
+            onKeyDown={(e) => { if (e.key === "Enter") handleUrlSubmit(); }}
           />
-          <Button
-            size="sm"
+          <button
             onClick={handleUrlSubmit}
             disabled={!inlineValue.trim() || isProcessing}
-            className="w-full"
+            className="w-full accent-gradient-bg font-primary"
+            style={{
+              padding: "8px 0",
+              borderRadius: "var(--radius-sm)",
+              fontSize: 13,
+              fontWeight: 500,
+              color: "#0a0a0b",
+              border: "none",
+              cursor: "pointer",
+              opacity: !inlineValue.trim() || isProcessing ? 0.5 : 1,
+            }}
           >
             {isProcessing ? "Processing..." : "Ingest URL"}
-          </Button>
+          </button>
         </div>
       )}
 
-      {/* Inline GDrive input */}
       {inlineMode === "gdrive" && (
         <div className="flex flex-col gap-2 p-1">
           <div className="flex items-center justify-between">
-            <span className="text-xs text-gray-400 font-medium">
-              Google Drive folder URL
-            </span>
+            <span className="font-mono" style={{ fontSize: 11, color: "var(--text-muted)" }}>Google Drive folder URL</span>
             <button
-              onClick={() => {
-                setInlineMode(null);
-                setInlineValue("");
-              }}
-              className="text-gray-500 hover:text-gray-300"
+              onClick={() => { setInlineMode(null); setInlineValue(""); }}
+              style={{ color: "var(--text-muted)", background: "none", border: "none", cursor: "pointer" }}
             >
-              <X className="h-3.5 w-3.5" />
+              <X style={{ width: 14, height: 14 }} />
             </button>
           </div>
           <input
@@ -567,36 +587,39 @@ export default function AttachmentMenu() {
             value={inlineValue}
             onChange={(e) => setInlineValue(e.target.value)}
             placeholder="https://drive.google.com/drive/folders/..."
-            className="w-full bg-gray-900 border border-gray-600 rounded-md px-3 py-2 text-sm text-gray-200 placeholder:text-gray-500 focus:outline-none focus:ring-1 focus:ring-gray-500"
+            style={inputStyle}
             autoFocus
-            onKeyDown={(e) => {
-              if (e.key === "Enter") handleGDriveSubmit();
-            }}
+            onKeyDown={(e) => { if (e.key === "Enter") handleGDriveSubmit(); }}
           />
-          <Button
-            size="sm"
+          <button
             onClick={handleGDriveSubmit}
             disabled={!inlineValue.trim() || isProcessing}
-            className="w-full"
+            className="w-full accent-gradient-bg font-primary"
+            style={{
+              padding: "8px 0",
+              borderRadius: "var(--radius-sm)",
+              fontSize: 13,
+              fontWeight: 500,
+              color: "#0a0a0b",
+              border: "none",
+              cursor: "pointer",
+              opacity: !inlineValue.trim() || isProcessing ? 0.5 : 1,
+            }}
           >
             {isProcessing ? "Processing..." : "Connect Folder"}
-          </Button>
+          </button>
         </div>
       )}
 
-      {/* Inline text paste */}
       {inlineMode === "text" && (
         <div className="flex flex-col gap-2 p-1">
           <div className="flex items-center justify-between">
-            <span className="text-xs text-gray-400 font-medium">Paste text</span>
+            <span className="font-mono" style={{ fontSize: 11, color: "var(--text-muted)" }}>Paste text</span>
             <button
-              onClick={() => {
-                setInlineMode(null);
-                setInlineValue("");
-              }}
-              className="text-gray-500 hover:text-gray-300"
+              onClick={() => { setInlineMode(null); setInlineValue(""); }}
+              style={{ color: "var(--text-muted)", background: "none", border: "none", cursor: "pointer" }}
             >
-              <X className="h-3.5 w-3.5" />
+              <X style={{ width: 14, height: 14 }} />
             </button>
           </div>
           <textarea
@@ -604,17 +627,26 @@ export default function AttachmentMenu() {
             onChange={(e) => setInlineValue(e.target.value)}
             placeholder="Paste your text here..."
             rows={4}
-            className="w-full bg-gray-900 border border-gray-600 rounded-md px-3 py-2 text-sm text-gray-200 placeholder:text-gray-500 focus:outline-none focus:ring-1 focus:ring-gray-500 resize-none"
+            style={{ ...inputStyle, resize: "none" as const }}
             autoFocus
           />
-          <Button
-            size="sm"
+          <button
             onClick={handleTextPaste}
             disabled={!inlineValue.trim() || isProcessing}
-            className="w-full"
+            className="w-full accent-gradient-bg font-primary"
+            style={{
+              padding: "8px 0",
+              borderRadius: "var(--radius-sm)",
+              fontSize: 13,
+              fontWeight: 500,
+              color: "#0a0a0b",
+              border: "none",
+              cursor: "pointer",
+              opacity: !inlineValue.trim() || isProcessing ? 0.5 : 1,
+            }}
           >
             {isProcessing ? "Processing..." : "Anonymize & Load"}
-          </Button>
+          </button>
         </div>
       )}
     </div>
