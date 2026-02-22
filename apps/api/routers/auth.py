@@ -17,7 +17,8 @@ router = APIRouter(tags=["auth"])
 GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "")
 GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET", "")
 JWT_SECRET = os.getenv("JWT_SECRET", "")
-FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
+FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3001")
+BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8000")
 JWT_ALGORITHM = "HS256"
 JWT_EXPIRATION_HOURS = 24
 
@@ -43,11 +44,10 @@ def _build_base_url(request: Request) -> str:
 def _build_redirect_uri(request: Request) -> str:
     """Build the OAuth callback URI.
 
-    Always use FRONTEND_URL so the redirect goes through the frontend proxy.
-    This is critical when the backend runs on a different port (e.g. 8000)
-    behind the Next.js dev-server proxy on port 3000.
+    Points to the backend directly so Google redirects here for the code
+    exchange. The backend then redirects to FRONTEND_URL after success/error.
     """
-    return f"{FRONTEND_URL.rstrip('/')}/api/auth/callback"
+    return f"{BACKEND_URL.rstrip('/')}/api/auth/callback"
 
 
 def _issue_jwt(user_id: str, email: str) -> str:
@@ -217,10 +217,10 @@ async def google_callback(request: Request, code: Optional[str] = None, error: O
     """
 
     if error:
-        return RedirectResponse(url=f"/?auth_error={error}")
+        return RedirectResponse(url=f"{FRONTEND_URL}/?auth_error={error}")
 
     if not code:
-        return RedirectResponse(url="/?auth_error=missing_code")
+        return RedirectResponse(url=f"{FRONTEND_URL}/?auth_error=missing_code")
 
     redirect_uri = _build_redirect_uri(request)
 
@@ -238,12 +238,12 @@ async def google_callback(request: Request, code: Optional[str] = None, error: O
         )
 
     if token_response.status_code != 200:
-        return RedirectResponse(url="/?auth_error=token_exchange_failed")
+        return RedirectResponse(url=f"{FRONTEND_URL}/?auth_error=token_exchange_failed")
 
     tokens = token_response.json()
     access_token = tokens.get("access_token")
     if not access_token:
-        return RedirectResponse(url="/?auth_error=no_access_token")
+        return RedirectResponse(url=f"{FRONTEND_URL}/?auth_error=no_access_token")
 
     # Fetch user info from Google
     async with httpx.AsyncClient() as client:
@@ -253,14 +253,14 @@ async def google_callback(request: Request, code: Optional[str] = None, error: O
         )
 
     if userinfo_response.status_code != 200:
-        return RedirectResponse(url="/?auth_error=userinfo_failed")
+        return RedirectResponse(url=f"{FRONTEND_URL}/?auth_error=userinfo_failed")
 
     google_user = userinfo_response.json()
     google_id = google_user.get("id")
     email = google_user.get("email")
 
     if not google_id or not email:
-        return RedirectResponse(url="/?auth_error=invalid_user_data")
+        return RedirectResponse(url=f"{FRONTEND_URL}/?auth_error=invalid_user_data")
 
     # Create or find user in Supabase
     db = get_supabase()
@@ -307,7 +307,7 @@ async def google_callback(request: Request, code: Optional[str] = None, error: O
     # and sets auth state. Simple redirect is more reliable than
     # HTMLResponse which can be broken by client-side routing.
     token = _issue_jwt(user_id, email)
-    return RedirectResponse(url=f"/?token={token}")
+    return RedirectResponse(url=f"{FRONTEND_URL}/?token={token}")
 
 
 @router.post("/auth/google-code")
