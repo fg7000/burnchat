@@ -6,20 +6,9 @@ export async function parsePDF(
   file: File,
   onProgress?: ProgressCallback
 ): Promise<string> {
-  // Import the worker module FIRST — its side-effect sets
-  // globalThis.pdfjsWorker = { WorkerMessageHandler }, which tells
-  // PDFWorker to run on the main thread (no Web Worker, no workerSrc needed).
-  const pdfjsWorker = await import("pdfjs-dist/build/pdf.worker.mjs");
-
-  // Belt-and-suspenders: ensure the global is set even if webpack
-  // tree-shook the side-effect assignment in the worker module.
-  if (!(globalThis as Record<string, unknown>).pdfjsWorker) {
-    (globalThis as Record<string, unknown>).pdfjsWorker = {
-      WorkerMessageHandler: pdfjsWorker.WorkerMessageHandler,
-    };
-  }
-
   const pdfjsLib = await import("pdfjs-dist");
+
+  pdfjsLib.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
 
   const arrayBuffer = await file.arrayBuffer();
 
