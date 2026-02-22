@@ -8,17 +8,13 @@ export async function parsePDF(
 ): Promise<string> {
   const pdfjsLib = await import("pdfjs-dist");
 
-  // Point to the worker file copied into public/ so pdf.js can parse off-thread.
-  // An empty string no longer disables the worker in pdfjs-dist v5+.
-  if (!pdfjsLib.GlobalWorkerOptions.workerSrc) {
-    pdfjsLib.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
-  }
+  // Always set workerSrc — empty string no longer disables the worker in v5+.
+  pdfjsLib.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
 
   const arrayBuffer = await file.arrayBuffer();
 
   const loadingTask = pdfjsLib.getDocument({
     data: new Uint8Array(arrayBuffer),
-    disableAutoFetch: true,
     useWorkerFetch: false,
   });
 
