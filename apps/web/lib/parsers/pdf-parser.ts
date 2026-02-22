@@ -1,45 +1,21 @@
-const PARSE_TIMEOUT_MS = 30_000; // 30 seconds
+import * as pdfjs from 'pdfjs-dist';
 
-export type ProgressCallback = (pct: number, detail?: string) => void;
+// Set worker source BEFORE anything else
+pdfjs.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.mjs`;
 
-export async function parsePDF(
-  file: File,
-  onProgress?: ProgressCallback
-): Promise<string> {
-  const pdfjsLib = await import("pdfjs-dist");
-
-  pdfjsLib.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
-
+export async function parsePDF(file: File): Promise<string> {
   const arrayBuffer = await file.arrayBuffer();
-
-  const loadingTask = pdfjsLib.getDocument({
-    data: new Uint8Array(arrayBuffer),
-  });
-
-  const pdf = await Promise.race([
-    loadingTask.promise,
-    new Promise<never>((_, reject) =>
-      setTimeout(() => {
-        loadingTask.destroy();
-        reject(new Error("PDF parsing timed out after 30 seconds. The file may be too large or corrupted."));
-      }, PARSE_TIMEOUT_MS)
-    ),
-  ]);
-
+  const pdf = await pdfjs.getDocument({ data: arrayBuffer }).promise;
   const pages: string[] = [];
+
   for (let i = 1; i <= pdf.numPages; i++) {
     const page = await pdf.getPage(i);
     const textContent = await page.getTextContent();
     const text = textContent.items
-      .map((item) => ("str" in item && item.str ? item.str : ""))
-      .join(" ");
+      .map((item: any) => item.str)
+      .join(' ');
     pages.push(text);
-
-    onProgress?.(
-      Math.round((i / pdf.numPages) * 100),
-      `Page ${i} of ${pdf.numPages}`
-    );
   }
 
-  return pages.join("\n\n");
+  return pages.join('\n\n');
 }

@@ -7,7 +7,7 @@ import { apiClient } from "@/lib/api-client";
 import { cn } from "@/lib/utils";
 import { FileText, Link, Folder, FileEdit, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { parsePDF, type ProgressCallback } from "@/lib/parsers/pdf-parser";
+import { parsePDF } from "@/lib/parsers/pdf-parser";
 import { parseDOCX } from "@/lib/parsers/docx-parser";
 import { parseImage } from "@/lib/parsers/ocr-parser";
 
@@ -83,11 +83,11 @@ export default function AttachmentMenu() {
   // Parse a single file based on its type
   const parseFile = async (
     file: File,
-    onProgress?: ProgressCallback
+    onProgress?: (pct: number, detail?: string) => void
   ): Promise<string> => {
     const name = file.name.toLowerCase();
     if (name.endsWith(".pdf")) {
-      return parsePDF(file, onProgress);
+      return parsePDF(file);
     } else if (name.endsWith(".docx")) {
       return parseDOCX(file);
     } else if (
