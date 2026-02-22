@@ -1,39 +1,39 @@
 "use client";
 
-import { Coins } from "lucide-react";
-import { cn } from "@/lib/utils";
+import React from "react";
 import { useSessionStore } from "@/store/session-store";
-import { useUIStore } from "@/store/ui-store";
 
-function formatNumber(n: number): string {
-  return n.toLocaleString("en-US");
-}
-
-export default function CreditDisplay() {
-  const { creditBalance } = useSessionStore();
-  const { setShowCreditModal } = useUIStore();
-
-  const isLow = creditBalance <= 0;
+export function CreditDisplay() {
+  const creditBalance = useSessionStore((s) => s.creditBalance);
+  const dollars = (creditBalance / 100).toFixed(2);
 
   return (
-    <button
-      onClick={() => setShowCreditModal(true)}
-      className={cn(
-        "flex items-center gap-1.5 rounded-md px-2.5 py-1 text-sm transition-colors",
-        isLow
-          ? "text-gray-500 hover:text-gray-300"
-          : "text-gray-300 hover:text-white"
-      )}
+    <div
+      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg"
+      style={{
+        background: "rgba(255,255,255,0.03)",
+        border: "1px solid rgba(255,255,255,0.06)",
+      }}
     >
-      <Coins
-        className={cn(
-          "h-4 w-4",
-          isLow ? "text-gray-500" : "text-gray-300"
-        )}
+      <div
+        style={{
+          width: "5px",
+          height: "5px",
+          borderRadius: "50%",
+          background: "#ff6b35",
+        }}
       />
-      <span className="font-medium tabular-nums">
-        {formatNumber(creditBalance)}
+      <span
+        style={{
+          fontSize: "12px",
+          color: "rgba(255,255,255,0.4)",
+          fontFamily: "'JetBrains Mono', monospace",
+        }}
+      >
+        ${dollars} credit
       </span>
-    </button>
+    </div>
   );
 }
+
+export default CreditDisplay;

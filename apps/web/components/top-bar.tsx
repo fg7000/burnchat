@@ -1,107 +1,92 @@
 "use client";
 
-import { useState } from "react";
-import { Shield, LogIn, User } from "lucide-react";
+import React from "react";
 import { useSessionStore } from "@/store/session-store";
+import { ModelSelector } from "./model-selector";
+import { CreditDisplay } from "./credit-display";
 import { useUIStore } from "@/store/ui-store";
-import { signInWithGoogle } from "@/lib/auth";
-import { Button } from "@/components/ui/button";
-import ModelSelector from "@/components/model-selector";
-import CreditDisplay from "@/components/credit-display";
-import {
-  DropdownMenu,
-  DropdownMenuTrigger,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-} from "@/components/ui/dropdown-menu";
 
-export default function TopBar() {
-  const { email, token, creditBalance, clearAuth, setAuth } = useSessionStore();
-  const { setShowCreditModal } = useUIStore();
-  const [signingIn, setSigningIn] = useState(false);
-
-  const isSignedIn = !!token && !!email;
-
-  const handleSignIn = () => {
-    setSigningIn(true);
-    signInWithGoogle()
-      .then(({ token: jwt, user }) => {
-        setAuth(jwt, user.user_id, user.email, user.credit_balance);
-      })
-      .catch((err) => {
-        console.error("[auth] Sign-in failed:", err.message);
-      })
-      .finally(() => setSigningIn(false));
-  };
-
-  const handleSignOut = () => {
-    clearAuth();
-  };
+export function TopBar() {
+  const token = useSessionStore((s) => s.token);
+  const startGoogleLogin = useSessionStore((s) => s.startGoogleLogin);
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 h-14 border-b border-gray-800 bg-gray-950/95 backdrop-blur supports-[backdrop-filter]:bg-gray-950/80">
-      <div className="flex h-full items-center justify-between px-4">
-        {/* Left: Logo */}
-        <div className="flex items-center gap-2">
-          <Shield className="h-6 w-6 text-white" />
-          <span className="text-lg font-semibold text-white">BurnChat</span>
+    <nav
+      className="flex justify-between items-center px-8 py-4 relative z-10"
+      style={{
+        borderBottom: "1px solid rgba(255,255,255,0.04)",
+      }}
+    >
+      {/* Logo */}
+      <div className="flex items-center gap-2.5">
+        <div
+          className="flex items-center justify-center"
+          style={{
+            width: "30px",
+            height: "30px",
+            borderRadius: "8px",
+            background: "linear-gradient(135deg, #ff6b35, #ff3c1e)",
+            fontSize: "14px",
+            fontWeight: 500,
+            color: "#0a0a0b",
+            fontFamily: "'JetBrains Mono', monospace",
+            letterSpacing: "-1px",
+          }}
+        >
+          B
         </div>
-
-        {/* Right: Model Selector + Credits + User */}
-        <div className="flex items-center gap-3">
-          {/* Model Selector */}
-          <ModelSelector />
-
-          {/* Credit Display */}
-          <CreditDisplay />
-
-          {/* User area */}
-          {isSignedIn ? (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button className="flex items-center gap-2 rounded-md bg-gray-800 px-3 py-1.5 text-sm text-gray-300 transition-colors hover:bg-gray-700">
-                  <User className="h-4 w-4 text-gray-400" />
-                  <span className="max-w-[160px] truncate">{email}</span>
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56">
-                <div className="px-2 py-1.5">
-                  <p className="text-sm text-gray-300">{email}</p>
-                  <p className="text-xs text-gray-500">
-                    {creditBalance} credits remaining
-                  </p>
-                </div>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  onClick={() => setShowCreditModal(true)}
-                  className="text-gray-300"
-                >
-                  Buy Credits
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  onClick={handleSignOut}
-                  className="text-gray-400 focus:text-gray-300"
-                >
-                  Sign Out
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          ) : (
-            <Button
-              variant="default"
-              size="sm"
-              onClick={handleSignIn}
-              disabled={signingIn}
-              className="gap-1.5"
-            >
-              <LogIn className="h-4 w-4" />
-              {signingIn ? "Signing in..." : "Sign in with Google"}
-            </Button>
-          )}
-        </div>
+        <span
+          style={{
+            fontSize: "16px",
+            fontWeight: 500,
+            letterSpacing: "-0.02em",
+            color: "#fff",
+            fontFamily: "'DM Sans', sans-serif",
+          }}
+        >
+          burnchat
+        </span>
       </div>
-    </header>
+
+      {/* Right side */}
+      <div className="flex items-center gap-5">
+        <ModelSelector />
+        <CreditDisplay />
+        {token ? (
+          <div
+            className="flex items-center justify-center cursor-pointer"
+            style={{
+              width: "28px",
+              height: "28px",
+              borderRadius: "50%",
+              background: "linear-gradient(135deg, #1e1e22, #141416)",
+              border: "1px solid rgba(255,255,255,0.08)",
+              fontSize: "11px",
+              color: "rgba(255,255,255,0.35)",
+            }}
+          >
+            U
+          </div>
+        ) : (
+          <button
+            onClick={startGoogleLogin}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg transition-all duration-200"
+            style={{
+              background: "rgba(255,255,255,0.04)",
+              border: "1px solid rgba(255,255,255,0.08)",
+              color: "rgba(255,255,255,0.6)",
+              fontSize: "13px",
+              fontWeight: 400,
+              fontFamily: "'DM Sans', sans-serif",
+              cursor: "pointer",
+            }}
+          >
+            Sign in with Google
+          </button>
+        )}
+      </div>
+    </nav>
   );
 }
+
+export default TopBar;
