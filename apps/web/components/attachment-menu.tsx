@@ -7,8 +7,6 @@ import { apiClient } from "@/lib/api-client";
 import { cn } from "@/lib/utils";
 import { FileText, Link, Folder, FileEdit, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { parsePDF } from "@/lib/parsers/pdf-parser";
-import { parseDOCX } from "@/lib/parsers/docx-parser";
 import { parseImage } from "@/lib/parsers/ocr-parser";
 
 type InlineMode = null | "url" | "gdrive" | "text";
@@ -86,18 +84,22 @@ export default function AttachmentMenu() {
     onProgress?: (pct: number, detail?: string) => void
   ): Promise<string> => {
     const name = file.name.toLowerCase();
-    if (name.endsWith(".pdf")) {
-      return parsePDF(file);
-    } else if (name.endsWith(".docx")) {
-      return parseDOCX(file);
-    } else if (
+    if (
       name.endsWith(".png") ||
       name.endsWith(".jpg") ||
       name.endsWith(".jpeg")
     ) {
       return parseImage(file);
+    } else if (
+      name.endsWith(".pdf") ||
+      name.endsWith(".docx") ||
+      name.endsWith(".txt")
+    ) {
+      // Parse via backend (Python) — avoids browser bundling issues
+      const result = await apiClient.parseFile(file, token);
+      return result.text;
     } else {
-      // .txt and other text files
+      // Fallback: read as text
       return file.text();
     }
   };

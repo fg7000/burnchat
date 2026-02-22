@@ -1,4 +1,6 @@
-from fastapi import APIRouter, HTTPException
+import io
+
+from fastapi import APIRouter, HTTPException, UploadFile, File
 
 from models.schemas import (
     GDriveFolderRequest,
@@ -80,3 +82,45 @@ async def ingest_gdrive_folder(request: GDriveFolderRequest):
         files=results,
         total_files=len(results),
     )
+
+
+@router.post("/parse-file")
+async def parse_file(file: UploadFile = File(...)):
+    """Parse an uploaded file (PDF, DOCX, or plain text) and return its text."""
+    content = await file.read()
+    filename = file.filename or "unknown"
+
+    if filename.lower().endswith(".pdf"):
+        import pypdf
+
+        reader = pypdf.PdfReader(io.BytesIO(content))
+        text = ""
+        for page in reader.pages:
+            extracted = page.extract_text()
+            if extracted:
+                text += extracted + "\n\n"
+        return {
+            "text": text.strip(),
+            "filename": filename,
+            "pages": len(reader.pages),
+        }
+
+    elif filename.lower().endswith(".docx"):
+        import docx
+
+        doc = docx.Document(io.BytesIO(content))
+        text = "\n\n".join([p.text for p in doc.paragraphs])
+        return {"text": text, "filename": filename, "pages": 1}
+
+    elif filename.lower().endswith(".txt"):
+        return {
+            "text": content.decode("utf-8", errors="replace"),
+            "filename": filename,
+            "pages": 1,
+        }
+
+    else:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unsupported file type: {filename}",
+        )

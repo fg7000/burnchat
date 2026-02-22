@@ -102,6 +102,22 @@ class ApiClient {
     };
   }
 
+  async parseFile(file: File, token?: string | null) {
+    const formData = new FormData();
+    formData.append("file", file);
+    const headers: HeadersInit = {};
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
+    const res = await safeFetch("/api/parse-file", {
+      method: "POST",
+      headers,
+      body: formData,
+    });
+    if (!res.ok) throw new Error(await res.text());
+    return res.json() as Promise<{ text: string; filename: string; pages: number }>;
+  }
+
   async ingestUrl(url: string, token?: string | null) {
     const res = await safeFetch("/api/ingest-url", {
       method: "POST",
