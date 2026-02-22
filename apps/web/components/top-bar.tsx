@@ -1,8 +1,10 @@
 "use client";
 
+import { useState } from "react";
 import { Shield, LogIn, User } from "lucide-react";
 import { useSessionStore } from "@/store/session-store";
 import { useUIStore } from "@/store/ui-store";
+import { signInWithGoogle } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import ModelSelector from "@/components/model-selector";
 import CreditDisplay from "@/components/credit-display";
@@ -15,16 +17,22 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 export default function TopBar() {
-  const { email, token, creditBalance, clearAuth } = useSessionStore();
+  const { email, token, creditBalance, clearAuth, setAuth } = useSessionStore();
   const { setShowCreditModal } = useUIStore();
+  const [signingIn, setSigningIn] = useState(false);
 
   const isSignedIn = !!token && !!email;
 
   const handleSignIn = () => {
-    // Navigate to a self-contained auth page served by the backend.
-    // This bypasses any proxy-cached frontend JS that might use old
-    // redirect-based OAuth. The backend page has GIS Code Client inline.
-    window.location.href = "/api/auth/signin-page";
+    setSigningIn(true);
+    signInWithGoogle()
+      .then(({ token: jwt, user }) => {
+        setAuth(jwt, user.user_id, user.email, user.credit_balance);
+      })
+      .catch((err) => {
+        console.error("[auth] Sign-in failed:", err.message);
+      })
+      .finally(() => setSigningIn(false));
   };
 
   const handleSignOut = () => {
@@ -85,10 +93,11 @@ export default function TopBar() {
               variant="default"
               size="sm"
               onClick={handleSignIn}
+              disabled={signingIn}
               className="gap-1.5"
             >
               <LogIn className="h-4 w-4" />
-              Sign in with Google
+              {signingIn ? "Signing in..." : "Sign in with Google"}
             </Button>
           )}
         </div>
