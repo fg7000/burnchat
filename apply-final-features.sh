@@ -1,3 +1,9 @@
+#!/bin/bash
+set -e
+cd ~/burnchat
+echo "🔥 Adding auth gate + real voice input with audio bars..."
+
+cat > apps/web/components/chat-input.tsx << 'CHATEOF'
 "use client";
 
 import React, { useState, useRef, useCallback, useEffect, KeyboardEvent } from "react";
@@ -504,3 +510,20 @@ export default function ChatInput() {
     </div>
   );
 }
+CHATEOF
+echo "  ✅ chat-input.tsx replaced"
+
+echo ""
+echo "=== VERIFICATION ==="
+echo "1. Auth gate:"
+grep -c "showSignInModal\|AUTH GATE" apps/web/components/chat-input.tsx
+echo "2. Voice input (SpeechRecognition):"
+grep -c "SpeechRecognition\|startRecording\|stopRecording\|isRecording" apps/web/components/chat-input.tsx
+echo "3. Audio bars:"
+grep -c "AudioBars\|analyser\|AnalyserNode" apps/web/components/chat-input.tsx
+echo "4. Pending action resume:"
+grep -c "pendingAction" apps/web/components/chat-input.tsx
+echo "5. next.config safe:"
+grep "ignoreBuildErrors" apps/web/next.config.mjs
+echo ""
+echo "🔥 Done! Run: git add -A && git commit -m 'feat: auth gate + voice input with audio bars' && git push origin main"
