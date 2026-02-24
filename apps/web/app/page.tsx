@@ -10,6 +10,7 @@ import ChatInput from "@/components/chat-input";
 import SessionSidebar from "@/components/session-sidebar";
 import CreditPurchaseModal from "@/components/credit-purchase-modal";
 import SessionListModal from "@/components/session-list-modal";
+import SignInModal from "@/components/sign-in-modal";
 
 export default function Home() {
   const { token, sessionMode, setCreditBalance, setAuth } = useSessionStore();
@@ -127,6 +128,7 @@ export default function Home() {
         </div>
       </div>
       <CreditPurchaseModal />
+        <SignInModal />
       <SessionListModal />
     </div>
   );

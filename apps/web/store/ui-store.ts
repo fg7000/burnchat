@@ -1,5 +1,10 @@
 import { create } from "zustand";
 
+export interface PendingAction {
+  type: "message" | "upload";
+  data: string | File[];
+}
+
 interface UIState {
   showCreditModal: boolean;
   creditModalReason: "manual" | "exhausted" | null;
@@ -7,6 +12,8 @@ interface UIState {
   showSessionList: boolean;
   showSessionSidebar: boolean;
   showLoginPrompt: boolean;
+  showSignInModal: boolean;
+  pendingAction: PendingAction | null;
 
   setShowCreditModal: (show: boolean) => void;
   setCreditModalReason: (reason: "manual" | "exhausted" | null) => void;
@@ -14,6 +21,8 @@ interface UIState {
   setShowSessionList: (show: boolean) => void;
   setShowSessionSidebar: (show: boolean) => void;
   setShowLoginPrompt: (show: boolean) => void;
+  setShowSignInModal: (show: boolean) => void;
+  setPendingAction: (action: PendingAction | null) => void;
 }
 
 export const useUIStore = create<UIState>((set) => ({
@@ -23,6 +32,8 @@ export const useUIStore = create<UIState>((set) => ({
   showSessionList: false,
   showSessionSidebar: false,
   showLoginPrompt: false,
+  showSignInModal: false,
+  pendingAction: null,
 
   setShowCreditModal: (show) => set({ showCreditModal: show, ...(!show && { creditModalReason: null }) }),
   setCreditModalReason: (reason) => set({ creditModalReason: reason }),
@@ -30,4 +41,6 @@ export const useUIStore = create<UIState>((set) => ({
   setShowSessionList: (show) => set({ showSessionList: show }),
   setShowSessionSidebar: (show) => set({ showSessionSidebar: show }),
   setShowLoginPrompt: (show) => set({ showLoginPrompt: show }),
+  setShowSignInModal: (show) => set({ showSignInModal: show }),
+  setPendingAction: (action) => set({ pendingAction: action }),
 }));
