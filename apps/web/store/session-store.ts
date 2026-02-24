@@ -97,7 +97,7 @@ const initialState = {
   token: null,
   userId: null,
   email: null,
-  creditBalance: 50,
+  creditBalance: 100,
   creditsExhausted: false,
   messages: [],
   isStreaming: false,

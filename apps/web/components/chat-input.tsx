@@ -268,7 +268,7 @@ export default function ChatInput() {
               value={text}
               onChange={handleInputChange}
               onKeyDown={handleKeyDown}
-              placeholder={creditsExhausted ? "Purchase credits to continue..." : "Ask about your document..."}
+              placeholder={creditsExhausted ? "Purchase credits to continue..." : "Say anything. It's anonymous."}
               disabled={isStreaming || creditsExhausted}
               rows={1}
               className={cn(
