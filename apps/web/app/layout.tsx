@@ -1,23 +1,11 @@
 import type { Metadata } from "next";
-import localFont from "next/font/local";
 import Script from "next/script";
 import "./globals.css";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
-const geistSans = localFont({
-  src: "./fonts/GeistVF.woff",
-  variable: "--font-geist-sans",
-  weight: "100 900",
-});
-const geistMono = localFont({
-  src: "./fonts/GeistMonoVF.woff",
-  variable: "--font-geist-mono",
-  weight: "100 900",
-});
-
 export const metadata: Metadata = {
   title: "BurnChat — The VPN for AI",
-  description: "A privacy proxy for AI. Upload sensitive documents, strip all PII, chat with any LLM. When you leave, everything burns.",
+  description: "Chat with AI anonymously. All personal information stripped before it reaches any model. Nothing stored.",
   keywords: ["AI privacy", "PII protection", "anonymous AI chat", "document anonymization"],
 };
 
@@ -28,9 +16,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="dark">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-gray-950 text-gray-100 min-h-screen`}
-      >
+      <body className="antialiased min-h-screen" style={{ background: "#0a0a0b", color: "#e8e8e8", margin: 0, padding: 0 }}>
         <TooltipProvider delayDuration={200}>
           {children}
         </TooltipProvider>
