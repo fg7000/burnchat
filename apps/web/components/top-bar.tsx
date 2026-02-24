@@ -2,9 +2,8 @@
 
 import React from "react";
 import { useSessionStore } from "@/store/session-store";
-import { ModelSelector } from "./model-selector";
-import { CreditDisplay } from "./credit-display";
-import { useUIStore } from "@/store/ui-store";
+import ModelSelector from "./model-selector";
+import CreditDisplay from "./credit-display";
 
 export function TopBar() {
   const token = useSessionStore((s) => s.token);
