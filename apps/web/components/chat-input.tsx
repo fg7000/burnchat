@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef, useCallback, KeyboardEvent } from "react";
+import React, { useState, useRef, useCallback, useEffect, KeyboardEvent } from "react";
 import { useSessionStore } from "@/store/session-store";
 import { useUIStore } from "@/store/ui-store";
 import { apiClient } from "@/lib/api-client";
@@ -16,7 +16,9 @@ import AttachmentMenu from "@/components/attachment-menu";
 
 export default function ChatInput() {
   const [text, setText] = useState("");
+  const [showVoiceToast, setShowVoiceToast] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const voiceToastTimer = useRef<ReturnType<typeof setTimeout>>();
 
   const messages = useSessionStore((s) => s.messages);
   const selectedModel = useSessionStore((s) => s.selectedModel);
@@ -37,9 +39,19 @@ export default function ChatInput() {
   const setShowAttachmentMenu = useUIStore((s) => s.setShowAttachmentMenu);
   const setShowCreditModal = useUIStore((s) => s.setShowCreditModal);
   const setCreditModalReason = useUIStore((s) => s.setCreditModalReason);
+  const setShowSignInModal = useUIStore((s) => s.setShowSignInModal);
+  const setPendingAction = useUIStore((s) => s.setPendingAction);
+  const pendingAction = useUIStore((s) => s.pendingAction);
 
   const hasText = text.trim().length > 0;
   const hasDocument = documents.length > 0;
+
+  // Cleanup voice toast timer on unmount
+  useEffect(() => {
+    return () => {
+      if (voiceToastTimer.current) clearTimeout(voiceToastTimer.current);
+    };
+  }, []);
 
   const adjustTextareaHeight = useCallback(() => {
     const textarea = textareaRef.current;
@@ -55,9 +67,16 @@ export default function ChatInput() {
     adjustTextareaHeight();
   };
 
-  const handleSend = useCallback(async () => {
-    const trimmed = text.trim();
+  const handleSend = useCallback(async (overrideText?: string) => {
+    const trimmed = (overrideText !== undefined ? overrideText : text).trim();
     if (!trimmed || isStreaming) return;
+
+    // Auth gate — show sign-in modal if not authenticated
+    if (!token) {
+      setPendingAction({ type: "message", data: trimmed });
+      setShowSignInModal(true);
+      return;
+    }
 
     if (creditsExhausted) {
       setCreditModalReason("exhausted");
@@ -187,7 +206,21 @@ export default function ChatInput() {
     setIsStreaming,
     setShowCreditModal,
     setCreditModalReason,
+    setShowSignInModal,
+    setPendingAction,
   ]);
+
+  // Resume pending message after sign-in
+  const handleSendRef = useRef(handleSend);
+  handleSendRef.current = handleSend;
+
+  useEffect(() => {
+    if (token && pendingAction?.type === "message") {
+      const msg = pendingAction.data as string;
+      setPendingAction(null);
+      handleSendRef.current(msg);
+    }
+  }, [token, pendingAction, setPendingAction]);
 
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -200,6 +233,12 @@ export default function ChatInput() {
     setCreditModalReason("exhausted");
     setShowCreditModal(true);
   }, [setCreditModalReason, setShowCreditModal]);
+
+  const handleMicClick = useCallback(() => {
+    setShowVoiceToast(true);
+    if (voiceToastTimer.current) clearTimeout(voiceToastTimer.current);
+    voiceToastTimer.current = setTimeout(() => setShowVoiceToast(false), 2500);
+  }, []);
 
   return (
     <div className="relative z-10" style={{ padding: "12px 16px 16px" }}>
@@ -308,7 +347,7 @@ export default function ChatInput() {
             <Tooltip>
               <TooltipTrigger asChild>
                 <button
-                  disabled
+                  onClick={handleMicClick}
                   style={{
                     width: 36,
                     height: 36,
@@ -320,20 +359,28 @@ export default function ChatInput() {
                     alignItems: "center",
                     justifyContent: "center",
                     flexShrink: 0,
-                    cursor: "not-allowed",
-                    opacity: 0.5,
+                    cursor: "pointer",
+                    transition: "color 0.25s ease, border-color 0.25s ease",
+                  }}
+                  onMouseEnter={(e) => {
+                    (e.currentTarget as HTMLElement).style.color = "var(--text-secondary)";
+                    (e.currentTarget as HTMLElement).style.borderColor = "rgba(255, 255, 255, 0.1)";
+                  }}
+                  onMouseLeave={(e) => {
+                    (e.currentTarget as HTMLElement).style.color = "var(--text-muted)";
+                    (e.currentTarget as HTMLElement).style.borderColor = "var(--border)";
                   }}
                 >
                   <Mic style={{ width: 16, height: 16 }} />
                 </button>
               </TooltipTrigger>
-              <TooltipContent>Voice coming soon</TooltipContent>
+              <TooltipContent>Voice input coming soon</TooltipContent>
             </Tooltip>
           </TooltipProvider>
 
           {/* Send button */}
           <button
-            onClick={handleSend}
+            onClick={() => handleSend()}
             disabled={!hasText || isStreaming || creditsExhausted}
             style={{
               width: 36,
@@ -353,6 +400,31 @@ export default function ChatInput() {
             <ArrowUp style={{ width: 18, height: 18 }} />
           </button>
         </div>
+
+        {/* Voice toast */}
+        {showVoiceToast && (
+          <div
+            className="font-primary"
+            style={{
+              position: "fixed",
+              bottom: 100,
+              left: "50%",
+              transform: "translateX(-50%)",
+              background: "#111113",
+              border: "1px solid rgba(255, 255, 255, 0.06)",
+              borderRadius: 10,
+              padding: "10px 20px",
+              fontSize: 13,
+              color: "rgba(255, 255, 255, 0.7)",
+              zIndex: 60,
+              animation: "fadeInUp 0.2s ease",
+              boxShadow: "0 4px 20px rgba(0, 0, 0, 0.3)",
+              whiteSpace: "nowrap",
+            }}
+          >
+            Voice input coming soon!
+          </div>
+        )}
 
         {/* Footer */}
         <div

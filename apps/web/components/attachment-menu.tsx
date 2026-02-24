@@ -37,6 +37,9 @@ function getErrorMessage(error: unknown): string {
 export default function AttachmentMenu() {
   const showAttachmentMenu = useUIStore((s) => s.showAttachmentMenu);
   const setShowAttachmentMenu = useUIStore((s) => s.setShowAttachmentMenu);
+  const setShowSignInModal = useUIStore((s) => s.setShowSignInModal);
+  const setPendingAction = useUIStore((s) => s.setPendingAction);
+  const pendingAction = useUIStore((s) => s.pendingAction);
 
   const token = useSessionStore((s) => s.token);
   const sessionId = useSessionStore((s) => s.sessionId);
@@ -97,14 +100,9 @@ export default function AttachmentMenu() {
     }
   };
 
-  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files || files.length === 0) return;
-
+  // Extracted file processing logic (used by handleFileSelect and resumption effect)
+  const processSelectedFiles = async (fileArray: File[]) => {
     setIsProcessing(true);
-    closeMenu();
-
-    const fileArray = Array.from(files);
     const filenames = fileArray.map((f) => f.name);
 
     try {
@@ -250,15 +248,53 @@ export default function AttachmentMenu() {
       }
     } finally {
       setIsProcessing(false);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = "";
-      }
+    }
+  };
+
+  // Keep a ref to the latest processSelectedFiles for use in the resumption effect
+  const processFilesRef = useRef(processSelectedFiles);
+  processFilesRef.current = processSelectedFiles;
+
+  // Resume pending upload after sign-in
+  useEffect(() => {
+    if (token && pendingAction?.type === "upload") {
+      const files = pendingAction.data as File[];
+      setPendingAction(null);
+      processFilesRef.current(files);
+    }
+  }, [token, pendingAction, setPendingAction]);
+
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    const fileArray = Array.from(files);
+
+    // Auth gate — require sign-in before processing files
+    if (!token) {
+      setPendingAction({ type: "upload", data: fileArray });
+      setShowSignInModal(true);
+      closeMenu();
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      return;
+    }
+
+    closeMenu();
+    await processSelectedFiles(fileArray);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
     }
   };
 
   const handleUrlSubmit = async () => {
     const url = inlineValue.trim();
     if (!url) return;
+
+    // Auth gate
+    if (!token) {
+      setShowSignInModal(true);
+      return;
+    }
 
     setIsProcessing(true);
     closeMenu();
@@ -315,6 +351,12 @@ export default function AttachmentMenu() {
   const handleGDriveSubmit = async () => {
     const folderUrl = inlineValue.trim();
     if (!folderUrl) return;
+
+    // Auth gate
+    if (!token) {
+      setShowSignInModal(true);
+      return;
+    }
 
     setIsProcessing(true);
     closeMenu();
@@ -387,6 +429,12 @@ export default function AttachmentMenu() {
   const handleTextPaste = async () => {
     const pastedText = inlineValue.trim();
     if (!pastedText) return;
+
+    // Auth gate
+    if (!token) {
+      setShowSignInModal(true);
+      return;
+    }
 
     setIsProcessing(true);
     closeMenu();
@@ -493,7 +541,7 @@ export default function AttachmentMenu() {
             onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}
           >
             <FileText style={{ width: 16, height: 16, color: "var(--text-muted)" }} />
-            Upload file(s)
+            Upload file
           </button>
 
           <button
@@ -515,7 +563,7 @@ export default function AttachmentMenu() {
             onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}
           >
             <Folder style={{ width: 16, height: 16, color: "var(--text-muted)" }} />
-            Google Drive folder
+            Google Drive
           </button>
 
           <button
