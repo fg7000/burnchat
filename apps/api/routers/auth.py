@@ -27,7 +27,7 @@ GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token"
 GOOGLE_USERINFO_URL = "https://www.googleapis.com/oauth2/v2/userinfo"
 GOOGLE_SCOPES = "email profile openid"
 
-NEW_USER_BONUS_CREDITS = 50
+NEW_USER_BONUS_CREDITS = 100
 
 
 def _build_base_url(request: Request) -> str:
