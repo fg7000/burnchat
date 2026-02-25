@@ -12,7 +12,27 @@ export function deAnonymize(text: string, mapping: MappingEntry[]): string {
   const sorted = [...mapping].sort((a, b) => b.replacement.length - a.replacement.length);
 
   for (const entry of sorted) {
+    // Replace full fake name
     result = result.replaceAll(entry.replacement, entry.original);
+
+    // Also handle partial matches (AI might use just first or last name)
+    if (entry.entity_type.toLowerCase().includes("person")) {
+      const fakeParts = entry.replacement.split(" ");
+      const realParts = entry.original.split(" ");
+      if (fakeParts.length >= 2 && realParts.length >= 2) {
+        const fakeLast = fakeParts[fakeParts.length - 1];
+        const fakeFirst = fakeParts[0];
+        const realLast = realParts[realParts.length - 1];
+        const realFirst = realParts[0];
+        // Replace standalone last/first name (word boundary)
+        if (fakeLast.length > 3) {
+          result = result.replace(new RegExp("\\b" + fakeLast + "\\b", "g"), realLast);
+        }
+        if (fakeFirst.length > 3) {
+          result = result.replace(new RegExp("\\b" + fakeFirst + "\\b", "g"), realFirst);
+        }
+      }
+    }
   }
 
   return result;

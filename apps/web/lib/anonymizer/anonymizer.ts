@@ -151,8 +151,24 @@ export async function anonymizeText(
     }
   }
 
+  // Filter out common words and short entities (false positives)
+  const COMMON_WORDS = new Set([
+    "lawyer", "doctor", "nurse", "judge", "attorney", "plaintiff",
+    "defendant", "patient", "client", "officer", "manager", "director",
+    "president", "ceo", "cfo", "teacher", "professor", "engineer",
+    "consultant", "analyst", "partner", "associate", "agent", "broker",
+    "therapist", "counselor", "surgeon", "dentist", "pharmacist",
+    "accountant", "auditor", "secretary", "assistant", "intern",
+  ]);
+
+  const filtered = allEntities.filter((e) => {
+    if (e.text.length <= 2) return false;
+    if (COMMON_WORDS.has(e.text.toLowerCase())) return false;
+    return true;
+  });
+
   // No entities found — return as-is
-  if (allEntities.length === 0) {
+  if (filtered.length === 0) {
     return { anonymizedText: text, mapping: existingMapping, entitiesFound: 0 };
   }
 
