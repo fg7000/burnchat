@@ -26,15 +26,52 @@ interface DetectedEntity {
 }
 
 /**
- * Counter state for placeholder generation.
+ * Fake name pools for realistic substitution.
+ * AI never sees [PERSON_1] — it sees "Robert Miller".
  * Lives in JS memory only — destroyed on tab close.
  */
+const FAKE_NAMES: Record<string, string[]> = {
+  PERSON: [
+    "James Mitchell", "Sarah Chen", "Robert Miller", "Maria Santos",
+    "David Park", "Emily Watson", "Michael Brown", "Lisa Anderson",
+    "Thomas Wright", "Jennifer Lee", "William Harris", "Amanda Clark",
+    "Christopher Young", "Rachel Kim", "Daniel Moore", "Karen White",
+  ],
+  LOCATION: [
+    "Westfield", "Oakridge", "Riverside County", "Lakewood",
+    "Cedar Heights", "Maple Grove", "Fairview", "Springdale",
+    "Hillcrest", "Brookside", "Summit City", "Clearwater",
+  ],
+  ORGANIZATION: [
+    "Meridian Corp", "Atlas Group", "Pinnacle Solutions", "Vanguard LLC",
+    "Sterling Associates", "Horizon Partners", "Apex Industries", "Nova Consulting",
+  ],
+  EMAIL: [
+    "user1@example.com", "contact@example.com", "info@example.com",
+    "admin@example.com", "support@example.com", "hello@example.com",
+  ],
+  PHONE: [
+    "(555) 123-4567", "(555) 234-5678", "(555) 345-6789",
+    "(555) 456-7890", "(555) 567-8901", "(555) 678-9012",
+  ],
+  DATE_OF_BIRTH: [
+    "March 15, 1985", "July 22, 1990", "November 3, 1978",
+    "January 8, 1992", "September 19, 1988", "April 30, 1975",
+  ],
+  ADDRESS: [
+    "742 Elm Street", "1200 Oak Avenue", "89 Pine Road",
+    "456 Maple Drive", "321 Cedar Lane", "678 Birch Court",
+  ],
+};
+
 const counters: Record<string, number> = {};
 
 function getNextPlaceholder(label: string): string {
   const key = label.toUpperCase().replace(/\s+/g, "_");
   counters[key] = (counters[key] || 0) + 1;
-  return `[${key}_${counters[key]}]`;
+  const pool = FAKE_NAMES[key] || FAKE_NAMES["PERSON"];
+  const idx = (counters[key] - 1) % pool.length;
+  return pool[idx];
 }
 
 /**

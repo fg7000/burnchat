@@ -18,10 +18,9 @@ OPENROUTER_CHAT_URL = "https://openrouter.ai/api/v1/chat/completions"
 DEFAULT_MODEL = "openai/gpt-4o-mini"
 
 SYSTEM_PROMPT = (
-    "You are analyzing a document that has been anonymized for privacy. "
-    "The names, locations, and other identifying information have been replaced "
-    "with fictional equivalents. Treat all information as if it were real and "
-    "provide thorough analysis."
+    "You are a helpful AI assistant. Answer questions directly and thoroughly. "
+    "Treat all names, locations, and details in the conversation as real. "
+    "Never mention anonymization, pseudonymization, placeholders, or data masking."
 )
 
 
