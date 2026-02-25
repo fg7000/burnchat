@@ -13,13 +13,27 @@ interface ChatMessageProps {
   showRealNames: boolean;
 }
 
-function StreamingDots() {
+function FlameIcon({ animated = false }: { animated?: boolean }) {
   return (
-    <span className="inline-flex items-center gap-0.5">
-      <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-gray-400 [animation-delay:-0.3s]" />
-      <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-gray-400 [animation-delay:-0.15s]" />
-      <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-gray-400" />
-    </span>
+    <div
+      className={cn("flex items-center justify-center", animated && "animate-flame")}
+      style={{ width: "22px", height: "22px", borderRadius: "6px", background: "linear-gradient(135deg, #ff6b35, #ff3c1e)", flexShrink: 0 }}
+    >
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 0c0 4-3 6-3 10 0 2.21 1.34 3 3 3s3-.79 3-3c0-4-3-6-3-10z" fill="#0a0a0b" fillOpacity="0.8"/>
+      </svg>
+      <style jsx>{`
+        @keyframes flicker {
+          0%, 100% { opacity: 1; transform: scale(1); }
+          25% { opacity: 0.85; transform: scale(0.97); }
+          50% { opacity: 0.95; transform: scale(1.03); }
+          75% { opacity: 0.9; transform: scale(0.98); }
+        }
+        .animate-flame {
+          animation: flicker 1.5s ease-in-out infinite;
+        }
+      `}</style>
+    </div>
   );
 }
 
@@ -36,85 +50,98 @@ export function ChatMessage({ message, mapping, showRealNames: initialShowReal }
     return deAnonymize(message.content, mapping);
   }, [message.content, mapping, localShowReal, isAssistant]);
 
-  return (
-    <div
-      className={cn(
-        "flex w-full",
-        isUser ? "justify-end" : "justify-start"
-      )}
-    >
-      <div
-        className={cn(
-          "max-w-[80%] rounded-lg px-4 py-3",
-          isUser
-            ? "bg-gray-800 border border-gray-600"
-            : "bg-gray-800"
-        )}
-      >
-        {/* Message label */}
-        <div className="mb-1">
-          <span
-            className={cn(
-              "text-xs font-medium",
-              isUser ? "text-gray-200" : "text-gray-400"
-            )}
-          >
-            {isUser ? "You" : "Assistant"}
-          </span>
-        </div>
-
-        {/* Message content */}
-        <div className="text-sm text-gray-200 whitespace-pre-wrap break-words">
-          {displayContent}
-          {message.isStreaming && (
-            <span className="ml-1 inline-block">
-              <StreamingDots />
-            </span>
-          )}
-        </div>
-
-        {/* Assistant message footer */}
-        {isAssistant && !message.isStreaming && (
-          <div className="mt-2 flex items-center gap-3 border-t border-gray-700/50 pt-2">
-            {/* Show real names toggle */}
-            {mapping && mapping.length > 0 && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setLocalShowReal(!localShowReal)}
-                className={cn(
-                  "h-6 gap-1 px-2 text-xs",
-                  localShowReal
-                    ? "text-white hover:text-gray-200"
-                    : "text-gray-500 hover:text-gray-300"
-                )}
-              >
-                {localShowReal ? (
-                  <EyeOff className="h-3 w-3" />
-                ) : (
-                  <Eye className="h-3 w-3" />
-                )}
-                {localShowReal ? "Hide real names" : "Show real names"}
-              </Button>
-            )}
-
-            {/* Credits used */}
-            {message.creditsUsed != null && message.creditsUsed > 0 && (
-              <span className="flex items-center gap-1 text-xs text-gray-500">
-                <Coins className="h-3 w-3" />
-                {message.creditsUsed} credit{message.creditsUsed !== 1 ? "s" : ""}
-              </span>
-            )}
-
-            {/* Token count */}
-            {message.tokenCount && (
-              <span className="text-xs text-gray-500">
-                {message.tokenCount.input + message.tokenCount.output} tokens
-              </span>
-            )}
+  if (isUser) {
+    return (
+      <div className="flex w-full justify-end">
+        <div
+          className="max-w-[80%] rounded-xl px-4 py-3"
+          style={{
+            background: "rgba(255,255,255,0.04)",
+            border: "1px solid rgba(255,255,255,0.08)",
+          }}
+        >
+          <div className="text-sm whitespace-pre-wrap break-words" style={{ color: "rgba(255,255,255,0.85)", fontFamily: "'DM Sans', sans-serif" }}>
+            {displayContent}
           </div>
-        )}
+        </div>
       </div>
-    </div>
-  );
+    );
+  }
+
+  if (isAssistant) {
+    const isThinking = message.isStreaming && !message.content;
+
+    return (
+      <div className="flex w-full justify-start gap-2.5">
+        <FlameIcon animated={!!message.isStreaming} />
+        <div className="max-w-[80%]">
+          {isThinking ? (
+            <div className="flex items-center gap-2 py-2">
+              <span style={{ fontSize: "13px", color: "rgba(255,255,255,0.3)", fontFamily: "'DM Sans', sans-serif" }}>
+                Thinking...
+              </span>
+            </div>
+          ) : (
+            <>
+              <div
+                className="text-sm whitespace-pre-wrap break-words"
+                style={{ color: "rgba(255,255,255,0.75)", fontFamily: "'DM Sans', sans-serif", lineHeight: "1.65" }}
+              >
+                {displayContent}
+                {message.isStreaming && message.content && (
+                  <span
+                    className="inline-block ml-0.5"
+                    style={{
+                      width: "6px",
+                      height: "14px",
+                      background: "#ff6b35",
+                      borderRadius: "1px",
+                      animation: "blink 1s step-end infinite",
+                      verticalAlign: "text-bottom",
+                    }}
+                  />
+                )}
+              </div>
+
+              {/* Footer */}
+              {!message.isStreaming && (
+                <div className="mt-2 flex items-center gap-3 pt-1.5" style={{ borderTop: "1px solid rgba(255,255,255,0.04)" }}>
+                  {mapping && mapping.length > 0 && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setLocalShowReal(!localShowReal)}
+                      className="h-6 gap-1 px-2 text-xs"
+                      style={{ color: localShowReal ? "rgba(255,255,255,0.5)" : "rgba(255,255,255,0.25)" }}
+                    >
+                      {localShowReal ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+                      {localShowReal ? "Hide real names" : "Show real names"}
+                    </Button>
+                  )}
+                  {message.creditsUsed != null && message.creditsUsed > 0 && (
+                    <span className="flex items-center gap-1 text-xs" style={{ color: "rgba(255,255,255,0.2)" }}>
+                      <Coins className="h-3 w-3" />
+                      {message.creditsUsed} credit{message.creditsUsed !== 1 ? "s" : ""}
+                    </span>
+                  )}
+                  {message.tokenCount && (
+                    <span className="text-xs" style={{ color: "rgba(255,255,255,0.15)" }}>
+                      {message.tokenCount.input + message.tokenCount.output} tokens
+                    </span>
+                  )}
+                </div>
+              )}
+            </>
+          )}
+          <style jsx global>{`
+            @keyframes blink {
+              50% { opacity: 0; }
+            }
+          `}</style>
+        </div>
+      </div>
+    );
+  }
+
+  return null;
 }
