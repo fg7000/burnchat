@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import { Eye, EyeOff, Coins } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { type ChatMessage as ChatMessageType, type MappingEntry } from "@/store/session-store";
@@ -14,28 +14,91 @@ interface ChatMessageProps {
 }
 
 function FlameIcon({ animated = false }: { animated?: boolean }) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const particlesRef = useRef<any[]>([]);
+  const animFrameRef = useRef<number>(0);
+
+  useEffect(() => {
+    if (!animated || !canvasRef.current) return;
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    const W = canvas.width;
+    const H = canvas.height;
+    const cx = W / 2;
+    const cy = H / 2 + 4;
+    const MAX = 35;
+    const particles = particlesRef.current;
+    particles.length = 0;
+
+    function spawn() {
+      return {
+        x: cx + (Math.random() - 0.5) * 10,
+        y: cy + 2,
+        vx: (Math.random() - 0.5) * 0.5,
+        vy: -(0.4 + Math.random() * 0.8),
+        life: 1,
+        decay: 0.01 + Math.random() * 0.02,
+        size: 0.5 + Math.random() * 1.5,
+        hue: 20 + Math.random() * 25,
+      };
+    }
+
+    function tick() {
+      ctx.clearRect(0, 0, W, H);
+      if (particles.length < MAX && Math.random() > 0.3) {
+        particles.push(spawn());
+      }
+      for (let i = particles.length - 1; i >= 0; i--) {
+        const p = particles[i];
+        p.x += p.vx + (Math.random() - 0.5) * 0.3;
+        p.y += p.vy;
+        p.vy *= 0.99;
+        p.life -= p.decay;
+        p.size *= 0.995;
+        if (p.life <= 0) { particles.splice(i, 1); continue; }
+        const alpha = p.life * 0.7;
+        const lightness = 50 + (1 - p.life) * 20;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+        ctx.fillStyle = `hsla(${p.hue}, 100%, ${lightness}%, ${alpha})`;
+        ctx.fill();
+        if (p.life > 0.5) {
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, p.size * 3, 0, Math.PI * 2);
+          ctx.fillStyle = `hsla(${p.hue}, 100%, 60%, ${alpha * 0.15})`;
+          ctx.fill();
+        }
+      }
+      const glowAlpha = 0.15 + Math.sin(Date.now() / 300) * 0.08;
+      const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, 14);
+      grad.addColorStop(0, `rgba(255, 150, 50, ${glowAlpha})`);
+      grad.addColorStop(1, "rgba(255, 107, 53, 0)");
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, W, H);
+      animFrameRef.current = requestAnimationFrame(tick);
+    }
+
+    tick();
+    return () => cancelAnimationFrame(animFrameRef.current);
+  }, [animated]);
+
   return (
-    <div
-      className={cn("flex items-center justify-center", animated && "animate-flame")}
-      style={{ width: "22px", height: "22px", borderRadius: "6px", background: "linear-gradient(135deg, #ff6b35, #ff3c1e)", flexShrink: 0 }}
-    >
-      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <path d="M12 23c-3.6 0-6.5-2.8-6.5-6.2 0-3.2 2.4-5.8 4-8.1.3-.4.9-.4 1.1 0 .8 1.3 1.8 2.6 2.2 3.5.1-.9.5-2 1.2-3.3.2-.4.8-.4 1 0C16.8 12 18.5 14.5 18.5 16.8c0 3.4-2.9 6.2-6.5 6.2zm0-4.5c-1 0-1.8.7-1.8 1.6s.8 1.6 1.8 1.6 1.8-.7 1.8-1.6-.8-1.6-1.8-1.6z" fill="#0a0a0b" fillOpacity="0.9"/>
-      </svg>
-      <style jsx>{`
-        @keyframes flicker {
-          0%, 100% { opacity: 1; transform: scale(1); }
-          25% { opacity: 0.85; transform: scale(0.97); }
-          50% { opacity: 0.95; transform: scale(1.03); }
-          75% { opacity: 0.9; transform: scale(0.98); }
-        }
-        .animate-flame {
-          animation: flicker 1.5s ease-in-out infinite;
-        }
-      `}</style>
+    <div style={{ position: "relative", width: "28px", height: "28px", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+      {animated && (
+        <canvas
+          ref={canvasRef}
+          width={44}
+          height={44}
+          style={{ position: "absolute", inset: "-8px", zIndex: 1, pointerEvents: "none" }}
+        />
+      )}
+      <span style={{ fontSize: "18px", position: "relative", zIndex: 2, lineHeight: 1, filter: animated ? "none" : "drop-shadow(0 0 2px rgba(255,107,53,0.3))" }}>🔥</span>
     </div>
   );
 }
+
 
 export function ChatMessage({ message, mapping, showRealNames: initialShowReal }: ChatMessageProps) {
   const [localShowReal, setLocalShowReal] = useState(initialShowReal);
