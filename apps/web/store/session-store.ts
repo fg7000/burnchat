@@ -29,11 +29,8 @@ export interface DocumentInfo {
   tokenCount: number;
   chunkCount?: number;
   status: "parsing" | "anonymizing" | "embedding" | "ready" | "error";
-  /** Progress percentage 0-100 for current processing step */
   progress?: number;
-  /** Human-readable progress detail, e.g. "3 of 12 files" */
   progressDetail?: string;
-  /** Error message when status is "error" */
   errorDetail?: string;
 }
 
@@ -93,6 +90,27 @@ interface SessionState {
   resetSession: () => void;
 }
 
+// Load auth from localStorage on startup
+function loadPersistedAuth() {
+  if (typeof window === "undefined") return {};
+  try {
+    const saved = localStorage.getItem("burnchat_auth");
+    if (saved) {
+      const { token, userId, email, creditBalance } = JSON.parse(saved);
+      if (token && userId) {
+        return {
+          token,
+          userId,
+          email: email || null,
+          creditBalance: creditBalance ?? 0,
+          creditsExhausted: (creditBalance ?? 0) <= 0,
+        };
+      }
+    }
+  } catch {}
+  return {};
+}
+
 const initialState = {
   token: null,
   userId: null,
@@ -112,14 +130,36 @@ const initialState = {
 
 export const useSessionStore = create<SessionState>((set, get) => ({
   ...initialState,
+  ...loadPersistedAuth(),
 
-  setAuth: (token, userId, email, creditBalance) =>
-    set({ token, userId, email, creditBalance, creditsExhausted: creditBalance <= 0 }),
+  setAuth: (token, userId, email, creditBalance) => {
+    // Persist to localStorage
+    try {
+      localStorage.setItem("burnchat_auth", JSON.stringify({ token, userId, email, creditBalance }));
+    } catch {}
+    set({ token, userId, email, creditBalance, creditsExhausted: creditBalance <= 0 });
+  },
 
-  clearAuth: () =>
-    set({ token: null, userId: null, email: null, creditBalance: 0 }),
+  clearAuth: () => {
+    // Remove from localStorage
+    try {
+      localStorage.removeItem("burnchat_auth");
+    } catch {}
+    set({ token: null, userId: null, email: null, creditBalance: 0 });
+  },
 
-  setCreditBalance: (balance) => set({ creditBalance: balance, creditsExhausted: balance <= 0 }),
+  setCreditBalance: (balance) => {
+    // Update localStorage too
+    try {
+      const saved = localStorage.getItem("burnchat_auth");
+      if (saved) {
+        const auth = JSON.parse(saved);
+        auth.creditBalance = balance;
+        localStorage.setItem("burnchat_auth", JSON.stringify(auth));
+      }
+    } catch {}
+    set({ creditBalance: balance, creditsExhausted: balance <= 0 });
+  },
 
   setCreditsExhausted: (exhausted) => set({ creditsExhausted: exhausted }),
 
@@ -138,8 +178,16 @@ export const useSessionStore = create<SessionState>((set, get) => ({
 
   setStreamingComplete: (messageId, creditsUsed, tokenCount, newBalance) =>
     set((state) => {
-      // Use server-reported balance when available, otherwise fall back to local math
       const creditBalance = newBalance !== undefined ? newBalance : state.creditBalance - creditsUsed;
+      // Update localStorage with new balance
+      try {
+        const saved = localStorage.getItem("burnchat_auth");
+        if (saved) {
+          const auth = JSON.parse(saved);
+          auth.creditBalance = creditBalance;
+          localStorage.setItem("burnchat_auth", JSON.stringify(auth));
+        }
+      } catch {}
       return {
         messages: state.messages.map((m) =>
           m.id === messageId ? { ...m, isStreaming: false, creditsUsed, tokenCount } : m
@@ -184,5 +232,10 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   setSessionName: (name) => set({ sessionName: name }),
   setSelectedModel: (model) => set({ selectedModel: model }),
 
-  resetSession: () => set(initialState),
+  resetSession: () => {
+    try {
+      localStorage.removeItem("burnchat_auth");
+    } catch {}
+    set(initialState);
+  },
 }));
