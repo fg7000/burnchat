@@ -60,9 +60,14 @@ export async function initGliner(onProgress?: ProgressCallback): Promise<void> {
       onProgress?.("Downloading privacy model...");
 
       // Dynamic import to avoid SSR issues
-      const { default: Gliner } = await import("gliner");
+      const glinerModule = await import("gliner");
+      // The export might be default, Gliner, GLiNER, or the module itself
+      const GlinerClass = glinerModule.default || glinerModule.Gliner || glinerModule.GLiNER || glinerModule;
+      
+      console.log("[BurnChat] GLiNER module keys:", Object.keys(glinerModule));
+      console.log("[BurnChat] Using constructor:", GlinerClass?.name || typeof GlinerClass);
 
-      const instance = new Gliner(MODEL_CONFIG);
+      const instance = new (GlinerClass as any)(MODEL_CONFIG);
 
       onProgress?.("Initializing privacy engine...");
       await instance.initialize();
