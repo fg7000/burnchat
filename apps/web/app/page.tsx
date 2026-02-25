@@ -105,6 +105,14 @@ export default function Home() {
   }, [token, setCreditBalance, setShowCreditModal]);
 
   // Warn on tab close
+
+  // Always refresh balance from server when we have a token
+  useEffect(() => {
+    if (!token) return;
+    apiClient.getMe(token).then((user) => {
+      setCreditBalance(user.credit_balance);
+    }).catch(() => {});
+  }, [token, setCreditBalance]);
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
       const { messages, documents } = useSessionStore.getState();
