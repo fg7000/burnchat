@@ -20,7 +20,7 @@ function FlameIcon({ animated = false }: { animated?: boolean }) {
       style={{ width: "22px", height: "22px", borderRadius: "6px", background: "linear-gradient(135deg, #ff6b35, #ff3c1e)", flexShrink: 0 }}
     >
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 0c0 4-3 6-3 10 0 2.21 1.34 3 3 3s3-.79 3-3c0-4-3-6-3-10z" fill="#0a0a0b" fillOpacity="0.8"/>
+        <path d="M12 23c-3.6 0-6.5-2.8-6.5-6.2 0-3.2 2.4-5.8 4-8.1.3-.4.9-.4 1.1 0 .8 1.3 1.8 2.6 2.2 3.5.1-.9.5-2 1.2-3.3.2-.4.8-.4 1 0C16.8 12 18.5 14.5 18.5 16.8c0 3.4-2.9 6.2-6.5 6.2zm0-4.5c-1 0-1.8.7-1.8 1.6s.8 1.6 1.8 1.6 1.8-.7 1.8-1.6-.8-1.6-1.8-1.6z" fill="#0a0a0b" fillOpacity="0.9"/>
       </svg>
       <style jsx>{`
         @keyframes flicker {
