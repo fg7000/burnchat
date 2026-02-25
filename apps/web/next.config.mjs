@@ -3,8 +3,27 @@ const nextConfig = {
   images: { unoptimized: true },
   typescript: { ignoreBuildErrors: true },
   eslint: { ignoreDuringBuilds: true },
-  webpack: (config) => {
+  webpack: (config, { isServer }) => {
     config.resolve.alias.canvas = false;
+    config.resolve.alias['onnxruntime-node'] = false;
+    config.resolve.alias['onnxruntime-web/webgl'] = false;
+    config.resolve.alias['onnxruntime-web/webgpu'] = false;
+    config.resolve.alias['onnxruntime-web/wasm'] = false;
+    // GLiNER uses @xenova/transformers which pulls onnxruntime-node
+    // We only use the browser (WASM/WebGPU) backend, so exclude native bindings
+    config.externals = config.externals || [];
+    if (!isServer) {
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        fs: false,
+        path: false,
+        os: false,
+      };
+    }
+    config.module.rules.push({
+      test: /\.node$/,
+      use: 'ignore-loader',
+    });
     return config;
   },
   async rewrites() {

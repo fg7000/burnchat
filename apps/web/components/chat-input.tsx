@@ -108,6 +108,8 @@ export default function ChatInput() {
   );
   const setStreamingComplete = useSessionStore((s) => s.setStreamingComplete);
   const setIsStreaming = useSessionStore((s) => s.setIsStreaming);
+  const currentMapping = useSessionStore((s) => s.currentMapping);
+  const setCurrentMapping = useSessionStore((s) => s.setCurrentMapping);
 
   const setShowAttachmentMenu = useUIStore((s) => s.setShowAttachmentMenu);
   const setShowCreditModal = useUIStore((s) => s.setShowCreditModal);
