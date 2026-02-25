@@ -4,6 +4,11 @@ import React, { useState, useRef, useCallback, useEffect, KeyboardEvent } from "
 import { useSessionStore } from "@/store/session-store";
 import { useUIStore } from "@/store/ui-store";
 import { apiClient } from "@/lib/api-client";
+import { anonymizeText } from "@/lib/anonymizer/anonymizer";
+import { initGliner, isGlinerReady } from "@/lib/anonymizer/gliner-engine";
+import { deAnonymize } from "@/lib/anonymizer/de-anonymizer";
+import PrivacyShield from "@/components/privacy-shield";
+import AnonymizationDiff from "@/components/anonymization-diff";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
@@ -74,6 +79,12 @@ function AudioBars({ analyser }: { analyser: AnalyserNode | null }) {
 
 export default function ChatInput() {
   const [text, setText] = useState("");
+  const [privacyEnabled, setPrivacyEnabled] = useState(true);
+  const [lastDiff, setLastDiff] = useState<{
+    original: string;
+    anonymized: string;
+    mapping: import("@/store/session-store").MappingEntry[];
+  } | null>(null);
   const [isRecording, setIsRecording] = useState(false);
   const [analyserNode, setAnalyserNode] = useState<AnalyserNode | null>(null);
   const [noSpeechSupport, setNoSpeechSupport] = useState(false);
@@ -232,12 +243,40 @@ export default function ChatInput() {
     const userMessageId = `user-${Date.now()}`;
     const assistantMessageId = `assistant-${Date.now()}`;
 
+    // --- Privacy Shield: Anonymize before sending ---
+    let textForApi = trimmed;
+    let activeMapping = currentMapping;
+
+    if (privacyEnabled) {
+      try {
+        const anonResult = await anonymizeText(trimmed, currentMapping);
+        textForApi = anonResult.anonymizedText;
+        activeMapping = anonResult.mapping;
+        setCurrentMapping(activeMapping);
+
+        if (anonResult.entitiesFound > 0) {
+          setLastDiff({
+            original: trimmed,
+            anonymized: textForApi,
+            mapping: activeMapping,
+          });
+        } else {
+          setLastDiff(null);
+        }
+      } catch (err) {
+        console.warn("Anonymization failed, sending raw:", err);
+        setLastDiff(null);
+      }
+    } else {
+      setLastDiff(null);
+    }
+
     const chatHistory = messages
       .filter((m) => m.role === "user" || m.role === "assistant")
-      .map((m) => ({ role: m.role, content: m.content }));
-    chatHistory.push({ role: "user", content: trimmed });
+      .map((m) => ({ role: m.role, content: m.anonymizedContent || m.content }));
+    chatHistory.push({ role: "user", content: textForApi });
 
-    addMessage({ id: userMessageId, role: "user", content: trimmed });
+    addMessage({ id: userMessageId, role: "user", content: trimmed, anonymizedContent: textForApi });
     addMessage({ id: assistantMessageId, role: "assistant", content: "", isStreaming: true });
 
     setText("");
@@ -294,7 +333,10 @@ export default function ChatInput() {
               const data = JSON.parse(line.slice(6));
               if (data.type === "token") {
                 fullContent += data.content;
-                updateLastAssistantMessage(fullContent);
+                const displayContent = privacyEnabled
+                  ? deAnonymize(fullContent, activeMapping)
+                  : fullContent;
+                updateLastAssistantMessage(displayContent);
               } else if (data.type === "done") {
                 const serverBalance = data.usage?.credit_balance;
                 setStreamingComplete(
@@ -322,7 +364,8 @@ export default function ChatInput() {
     isStreaming, messages, selectedModel, sessionId, sessionMode,
     token, documents, hasDocument, creditsExhausted, addMessage,
     updateLastAssistantMessage, setStreamingComplete, setIsStreaming,
-    setShowCreditModal, setCreditModalReason,
+    setShowCreditModal, setCreditModalReason, privacyEnabled,
+    currentMapping, setCurrentMapping,
   ]);
 
   const handleSend = useCallback(async () => {
@@ -367,6 +410,16 @@ export default function ChatInput() {
     <div className="relative" style={{ background: "#0a0a0b", borderTop: "1px solid rgba(255,255,255,0.04)", padding: "12px" }}>
       <AttachmentMenu />
       <div className="max-w-3xl mx-auto">
+        {/* Anonymization diff */}
+        {lastDiff && (
+          <div className="mb-2">
+            <AnonymizationDiff
+              originalText={lastDiff.original}
+              anonymizedText={lastDiff.anonymized}
+              mapping={lastDiff.mapping}
+            />
+          </div>
+        )}
         {/* Credits exhausted banner */}
         {creditsExhausted ? (
           <div className="mb-3 rounded-lg px-4 py-3" style={{ border: "1px solid rgba(255, 107, 53, 0.3)", background: "rgba(255, 107, 53, 0.05)" }}>
@@ -410,7 +463,13 @@ export default function ChatInput() {
 
           {/* Textarea */}
           <div className="flex-1 relative">
-            <textarea
+            <div className="flex items-center gap-2 mb-2">
+            <PrivacyShield enabled={privacyEnabled} onToggle={setPrivacyEnabled} />
+            <span style={{ fontSize: "11px", color: privacyEnabled ? "rgba(255, 107, 53, 0.6)" : "rgba(255,255,255,0.2)" }}>
+              {privacyEnabled ? (isGlinerReady() ? "Privacy Shield active" : "Privacy Shield (loading model...)") : "Privacy Shield off"}
+            </span>
+          </div>
+          <textarea
               ref={textareaRef}
               value={text}
               onChange={handleInputChange}

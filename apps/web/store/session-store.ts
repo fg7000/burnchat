@@ -18,6 +18,7 @@ export interface ChatMessage {
   creditsUsed?: number;
   tokenCount?: { input: number; output: number };
   isStreaming?: boolean;
+  anonymizedContent?: string;
 }
 
 export interface DocumentInfo {
