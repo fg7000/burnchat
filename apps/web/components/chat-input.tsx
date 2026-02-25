@@ -80,11 +80,39 @@ function AudioBars({ analyser }: { analyser: AnalyserNode | null }) {
 export default function ChatInput() {
   const [text, setText] = useState("");
   const [privacyEnabled, setPrivacyEnabled] = useState(true);
+  const [modelReady, setModelReady] = useState(false);
   const [lastDiff, setLastDiff] = useState<{
     original: string;
     anonymized: string;
     mapping: import("@/store/session-store").MappingEntry[];
   } | null>(null);
+  const pendingMessageRef = useRef<string | null>(null);
+
+  // Poll for model readiness (checks every 500ms until ready)
+  useEffect(() => {
+    if (modelReady) return;
+    const check = () => {
+      if (isGlinerReady()) {
+        setModelReady(true);
+        // If there's a queued message, send it now
+        if (pendingMessageRef.current) {
+          const msg = pendingMessageRef.current;
+          pendingMessageRef.current = null;
+          doSendRef.current?.(msg);
+        }
+      }
+    };
+    check();
+    const interval = setInterval(check, 500);
+    return () => clearInterval(interval);
+  }, [modelReady]);
+  // Auto-clear diff banner after 8 seconds
+  useEffect(() => {
+    if (!lastDiff) return;
+    const timer = setTimeout(() => setLastDiff(null), 8000);
+    return () => clearTimeout(timer);
+  }, [lastDiff]);
+
   const [isRecording, setIsRecording] = useState(false);
   const [analyserNode, setAnalyserNode] = useState<AnalyserNode | null>(null);
   const [noSpeechSupport, setNoSpeechSupport] = useState(false);
@@ -232,6 +260,7 @@ export default function ChatInput() {
   }, [stopRecording]);
 
   // ---- SEND LOGIC ----
+  const doSendRef = useRef<((msg: string) => Promise<void>) | null>(null);
   const doSend = useCallback(async (messageText: string) => {
     const trimmed = messageText.trim();
     if (!trimmed || isStreaming) return;
@@ -370,6 +399,9 @@ export default function ChatInput() {
     currentMapping, setCurrentMapping,
   ]);
 
+  // Keep ref in sync for polling effect
+  useEffect(() => { doSendRef.current = doSend; }, [doSend]);
+
   const handleSend = useCallback(async () => {
     const trimmed = text.trim();
     if (!trimmed || isStreaming) return;
@@ -384,8 +416,23 @@ export default function ChatInput() {
       return;
     }
 
+    // If privacy is on but model not ready, queue the message
+    if (privacyEnabled && !modelReady) {
+      pendingMessageRef.current = trimmed;
+      setText("");
+      // Show a temporary "waiting" message
+      const waitId = `system-${Date.now()}`;
+      addMessage({
+        id: waitId,
+        role: "assistant",
+        content: "⏳ Privacy Shield is loading. Your message will be sent automatically once ready...",
+        isStreaming: true,
+      });
+      return;
+    }
+
     await doSend(trimmed);
-  }, [text, isStreaming, isRecording, stopRecording, token, setPendingAction, setShowSignInModal, doSend]);
+  }, [text, isStreaming, isRecording, stopRecording, token, setPendingAction, setShowSignInModal, doSend, privacyEnabled, modelReady, addMessage]);
 
   // Resume pending message after sign-in
   useEffect(() => {
@@ -468,7 +515,7 @@ export default function ChatInput() {
             <div className="flex items-center gap-2 mb-2">
             <PrivacyShield enabled={privacyEnabled} onToggle={setPrivacyEnabled} />
             <span style={{ fontSize: "11px", color: privacyEnabled ? "rgba(255, 107, 53, 0.6)" : "rgba(255,255,255,0.2)" }}>
-              {privacyEnabled ? (isGlinerReady() ? "Privacy Shield active" : "Privacy Shield (loading model...)") : "Privacy Shield off"}
+              {privacyEnabled ? (modelReady ? "Privacy Shield active" : "Privacy Shield (loading model…)") : "Privacy Shield off"}
             </span>
           </div>
           <textarea
