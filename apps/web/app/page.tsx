@@ -81,6 +81,15 @@ export default function Home() {
       apiClient.getCreditBalance(token).then((data) => {
         setCreditBalance(data.credit_balance);
         setShowCreditModal(false);
+        // Persist updated balance to localStorage
+        try {
+          const raw = localStorage.getItem("burnchat_auth");
+          if (raw) {
+            const stored = JSON.parse(raw);
+            stored.credit_balance = data.credit_balance;
+            localStorage.setItem("burnchat_auth", JSON.stringify(stored));
+          }
+        } catch { /* ignore */ }
       }).catch(() => {});
       window.history.replaceState({}, "", "/");
     } else if (payment === "cancelled") {

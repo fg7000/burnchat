@@ -36,6 +36,8 @@ export default function TopBar() {
 
   const handleSignOut = () => {
     clearAuth();
+    try { localStorage.removeItem("burnchat_auth"); } catch { /* ignore */ }
+    window.location.href = "/";
   };
 
   const initial = email ? email[0].toUpperCase() : "?";
