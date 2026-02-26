@@ -1,4 +1,5 @@
 import { detectEntities, isGlinerReady } from "./gliner-engine";
+import { detectContext, shouldKeepEntity, type ContextType } from "./context-rules";
 import { MappingEntry } from "@/store/session-store";
 
 /**
@@ -120,8 +121,11 @@ function deduplicateSpans(spans: DetectedEntity[]): DetectedEntity[] {
  */
 export async function anonymizeText(
   text: string,
-  existingMapping: MappingEntry[] = []
-): Promise<{ anonymizedText: string; mapping: MappingEntry[]; entitiesFound: number }> {
+  existingMapping: MappingEntry[] = [],
+  contextOverride?: ContextType
+): Promise<{ anonymizedText: string; mapping: MappingEntry[]; entitiesFound: number; detectedContext: ContextType }> {
+  // Detect context (or use override)
+  const detectedContext = contextOverride || detectContext(text);
   const allEntities: DetectedEntity[] = [];
 
   // 1. Regex patterns (always run, instant)
@@ -169,7 +173,7 @@ export async function anonymizeText(
 
   // No entities found — return as-is
   if (filtered.length === 0) {
-    return { anonymizedText: text, mapping: existingMapping, entitiesFound: 0 };
+    return { anonymizedText: text, mapping: existingMapping, entitiesFound: 0, detectedContext };
   }
 
   // 3. Deduplicate overlapping spans
@@ -201,6 +205,7 @@ export async function anonymizeText(
     anonymizedText: result,
     mapping: newMapping,
     entitiesFound: unique.length,
+    detectedContext,
   };
 }
 

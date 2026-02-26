@@ -85,6 +85,7 @@ export default function ChatInput() {
     original: string;
     anonymized: string;
     mapping: import("@/store/session-store").MappingEntry[];
+    context?: string;
   } | null>(null);
   const pendingMessageRef = useRef<string | null>(null);
 
@@ -290,6 +291,7 @@ export default function ChatInput() {
             original: trimmed,
             anonymized: textForApi,
             mapping: activeMapping,
+            context: anonResult.detectedContext,
           });
         } else {
           setLastDiff(null);
@@ -467,6 +469,27 @@ export default function ChatInput() {
               anonymizedText={lastDiff.anonymized}
               mapping={lastDiff.mapping}
             />
+            {lastDiff.context && lastDiff.context !== "general" && (
+              <div style={{
+                marginTop: "4px",
+                fontSize: "11px",
+                color: "rgba(255, 107, 53, 0.5)",
+                display: "flex",
+                alignItems: "center",
+                gap: "4px",
+              }}>
+                <span>
+                  {lastDiff.context === "legal" ? "⚖️" : lastDiff.context === "medical" ? "🏥" : "💰"}
+                </span>
+                <span>
+                  {lastDiff.context === "legal"
+                    ? "Legal context: jurisdictions & courts preserved"
+                    : lastDiff.context === "medical"
+                    ? "Medical context: conditions & facilities preserved"
+                    : "Financial context: companies & markets preserved"}
+                </span>
+              </div>
+            )}
           </div>
         )}
         {/* Credits exhausted banner */}
