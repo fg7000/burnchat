@@ -94,32 +94,32 @@ export default function BurnButton() {
     <button
       onClick={handleClick}
       disabled={isBurning}
-      className="flex items-center gap-2 px-3 py-1.5 rounded-lg transition-all duration-300"
+      className="flex items-center gap-1.5 px-2 py-1 rounded-md transition-all duration-300 ml-auto"
       style={{
         background: isArmed
           ? "rgba(255, 60, 30, 0.15)"
           : isBurning
             ? "rgba(255, 60, 30, 0.3)"
-            : "rgba(255, 107, 53, 0.06)",
+            : "transparent",
         border: isArmed
           ? "1px solid rgba(255, 60, 30, 0.4)"
           : isBurning
             ? "1px solid rgba(255, 60, 30, 0.6)"
-            : "1px solid rgba(255, 107, 53, 0.12)",
-        color: isArmed || isBurning ? "#ff3c1e" : "#ff6b35",
+            : "1px solid transparent",
+        color: isArmed || isBurning ? "#ff3c1e" : "rgba(255, 107, 53, 0.5)",
         cursor: isBurning ? "wait" : "pointer",
         fontFamily: "'JetBrains Mono', monospace",
-        fontSize: "11px",
+        fontSize: "10px",
         fontWeight: 500,
-        letterSpacing: "0.05em",
+        letterSpacing: "0.04em",
         animation: isArmed ? "pulse-burn 0.6s ease-in-out infinite" : "none",
       }}
     >
       <Flame
         className="transition-all duration-300"
         style={{
-          width: "14px",
-          height: "14px",
+          width: "12px",
+          height: "12px",
           animation: isBurning ? "spin 0.5s linear infinite" : "none",
         }}
       />
@@ -127,7 +127,7 @@ export default function BurnButton() {
         ? "BURNING..."
         : isArmed
           ? `CONFIRM (${countdown})`
-          : "BURN"}
+          : "BURN THE CHAT"}
     </button>
   );
 }

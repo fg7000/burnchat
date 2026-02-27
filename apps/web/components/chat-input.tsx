@@ -8,6 +8,7 @@ import { anonymizeText } from "@/lib/anonymizer/anonymizer";
 import { initGliner, isGlinerReady } from "@/lib/anonymizer/gliner-engine";
 import { deAnonymize } from "@/lib/anonymizer/de-anonymizer";
 import PrivacyShield from "@/components/privacy-shield";
+import BurnButton from "@/components/burn-button";
 import AnonymizationDiff from "@/components/anonymization-diff";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -540,6 +541,7 @@ export default function ChatInput() {
             <span style={{ fontSize: "11px", color: privacyEnabled ? "rgba(255, 107, 53, 0.6)" : "rgba(255,255,255,0.2)" }}>
               {privacyEnabled ? (modelReady ? "Privacy Shield active" : "Privacy Shield (loading model…)") : "Privacy Shield off"}
             </span>
+            <BurnButton />
           </div>
           <textarea
               ref={textareaRef}
