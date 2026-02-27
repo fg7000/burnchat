@@ -166,3 +166,146 @@ textarea { field-sizing: content; }
   pointer-events: none;
   will-change: transform, opacity;
 }
+
+/* ── Markdown rendering in chat ── */
+.burnchat-markdown {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 14px;
+  line-height: 1.7;
+  color: rgba(255, 255, 255, 0.75);
+  word-break: break-word;
+}
+
+.burnchat-markdown p {
+  margin-bottom: 12px;
+}
+
+.burnchat-markdown p:last-child {
+  margin-bottom: 0;
+}
+
+.burnchat-markdown h1,
+.burnchat-markdown h2,
+.burnchat-markdown h3,
+.burnchat-markdown h4 {
+  color: rgba(255, 255, 255, 0.9);
+  font-weight: 600;
+  margin-top: 20px;
+  margin-bottom: 8px;
+  line-height: 1.3;
+}
+
+.burnchat-markdown h1 { font-size: 20px; }
+.burnchat-markdown h2 { font-size: 17px; border-bottom: 1px solid rgba(255,255,255,0.06); padding-bottom: 6px; }
+.burnchat-markdown h3 { font-size: 15px; color: rgba(255, 255, 255, 0.8); }
+.burnchat-markdown h4 { font-size: 14px; color: rgba(255, 255, 255, 0.7); }
+
+.burnchat-markdown strong {
+  color: rgba(255, 255, 255, 0.9);
+  font-weight: 600;
+}
+
+.burnchat-markdown em {
+  color: rgba(255, 255, 255, 0.65);
+  font-style: italic;
+}
+
+.burnchat-markdown ul,
+.burnchat-markdown ol {
+  margin: 8px 0;
+  padding-left: 20px;
+}
+
+.burnchat-markdown li {
+  margin-bottom: 4px;
+}
+
+.burnchat-markdown li::marker {
+  color: rgba(255, 107, 53, 0.4);
+}
+
+.burnchat-markdown hr {
+  border: none;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  margin: 16px 0;
+}
+
+.burnchat-markdown blockquote {
+  border-left: 3px solid rgba(255, 107, 53, 0.3);
+  padding-left: 14px;
+  margin: 12px 0;
+  color: rgba(255, 255, 255, 0.55);
+  font-style: italic;
+}
+
+/* Inline code */
+.burnchat-markdown code {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 4px;
+  padding: 1px 5px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  color: #ff6b35;
+}
+
+/* Code blocks */
+.burnchat-markdown pre {
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 10px;
+  padding: 14px;
+  margin: 12px 0;
+  overflow-x: auto;
+}
+
+.burnchat-markdown pre code {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.7);
+  line-height: 1.6;
+}
+
+/* Tables */
+.burnchat-markdown table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 12px 0;
+  font-size: 13px;
+}
+
+.burnchat-markdown thead th {
+  text-align: left;
+  padding: 8px 12px;
+  background: rgba(255, 107, 53, 0.06);
+  border-bottom: 1px solid rgba(255, 107, 53, 0.15);
+  color: rgba(255, 255, 255, 0.7);
+  font-weight: 600;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.burnchat-markdown tbody td {
+  padding: 7px 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.burnchat-markdown tbody tr:hover {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+/* Links */
+.burnchat-markdown a {
+  color: #ff6b35;
+  text-decoration: none;
+  border-bottom: 1px solid rgba(255, 107, 53, 0.3);
+  transition: border-color 0.2s;
+}
+
+.burnchat-markdown a:hover {
+  border-bottom-color: #ff6b35;
+}

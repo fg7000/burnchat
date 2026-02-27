@@ -6,6 +6,8 @@ import { cn } from "@/lib/utils";
 import { type ChatMessage as ChatMessageType, type MappingEntry } from "@/store/session-store";
 import { deAnonymize } from "@/lib/anonymizer/de-anonymizer";
 import { Button } from "@/components/ui/button";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 interface ChatMessageProps {
   message: ChatMessageType;
@@ -146,11 +148,10 @@ export function ChatMessage({ message, mapping, showRealNames: initialShowReal }
             </div>
           ) : (
             <>
-              <div
-                className="text-sm whitespace-pre-wrap break-words"
-                style={{ color: "rgba(255,255,255,0.75)", fontFamily: "'DM Sans', sans-serif", lineHeight: "1.65" }}
-              >
-                {displayContent}
+              <div className="burnchat-markdown">
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                  {displayContent}
+                </ReactMarkdown>
                 {message.isStreaming && message.content && (
                   <span
                     className="inline-block ml-0.5"
