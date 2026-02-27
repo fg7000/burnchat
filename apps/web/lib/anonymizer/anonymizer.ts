@@ -177,16 +177,29 @@ export async function anonymizeText(
   }
 
   // 3. Deduplicate overlapping spans
-  const unique = deduplicateSpans(allEntities);
+  const unique = deduplicateSpans(filtered);
 
-  // 4. Sort by position (reverse) to replace from end to start
-  unique.sort((a, b) => b.start - a.start);
+  // 4. Context-aware filtering — keep entities that matter for this context
+  const contextFiltered = unique.filter((e) => {
+    if (shouldKeepEntity(e.label, detectedContext)) {
+      return false; // Don't anonymize — this entity is needed for useful AI response
+    }
+    return true;
+  });
 
-  // 5. Build mapping and replace
+  // No entities left after context filtering — return as-is
+  if (contextFiltered.length === 0) {
+    return { anonymizedText: text, mapping: existingMapping, entitiesFound: 0, detectedContext };
+  }
+
+  // 5. Sort by position (reverse) to replace from end to start
+  contextFiltered.sort((a, b) => b.start - a.start);
+
+  // 6. Build mapping and replace
   const newMapping: MappingEntry[] = [...existingMapping];
   let result = text;
 
-  for (const entity of unique) {
+  for (const entity of contextFiltered) {
     const placeholder = resolvePlaceholder(entity.text, entity.label, newMapping);
 
     // Add to mapping if new
@@ -204,7 +217,7 @@ export async function anonymizeText(
   return {
     anonymizedText: result,
     mapping: newMapping,
-    entitiesFound: unique.length,
+    entitiesFound: contextFiltered.length,
     detectedContext,
   };
 }
