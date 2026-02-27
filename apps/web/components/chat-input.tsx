@@ -88,7 +88,18 @@ export default function ChatInput() {
     mapping: import("@/store/session-store").MappingEntry[];
     context?: string;
   } | null>(null);
+  const [diffCollapsed, setDiffCollapsed] = useState(false);
   const pendingMessageRef = useRef<string | null>(null);
+
+  // Auto-collapse diff when AI finishes responding
+  const isStreaming = useSessionStore((s) => s.isStreaming);
+  const prevStreamingRef = useRef(false);
+  useEffect(() => {
+    if (prevStreamingRef.current && !isStreaming && lastDiff) {
+      setDiffCollapsed(true);
+    }
+    prevStreamingRef.current = isStreaming;
+  }, [isStreaming, lastDiff]);
 
   // Poll for model readiness (checks every 500ms until ready)
   useEffect(() => {
@@ -294,15 +305,11 @@ export default function ChatInput() {
             mapping: activeMapping,
             context: anonResult.detectedContext,
           });
-        } else {
-          setLastDiff(null);
+          setDiffCollapsed(false);
         }
       } catch (err) {
         console.warn("Anonymization failed, sending raw:", err);
-        setLastDiff(null);
       }
-    } else {
-      setLastDiff(null);
     }
 
     const chatHistory = messages
@@ -469,6 +476,7 @@ export default function ChatInput() {
               originalText={lastDiff.original}
               anonymizedText={lastDiff.anonymized}
               mapping={lastDiff.mapping}
+              collapsed={diffCollapsed}
             />
             {lastDiff.context && lastDiff.context !== "general" && (
               <div style={{

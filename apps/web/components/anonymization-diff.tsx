@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { MappingEntry } from "@/store/session-store";
 import { ChevronDown, ChevronUp, Shield } from "lucide-react";
 
@@ -9,12 +9,13 @@ interface AnonymizationDiffProps {
   anonymizedText: string;
   mapping: MappingEntry[];
   mode?: "message" | "document";
+  collapsed?: boolean;
 }
 
 /**
  * Shows what PII was detected and replaced.
  * Two modes:
- *   - "message" (default): Compact inline banner for chat messages
+ *   - "message" (default): Collapsible inline banner for chat messages
  *   - "document": Expandable panel with full entity list for uploaded docs
  */
 export default function AnonymizationDiff({
@@ -22,12 +23,22 @@ export default function AnonymizationDiff({
   anonymizedText,
   mapping,
   mode = "message",
+  collapsed: controlledCollapsed,
 }: AnonymizationDiffProps) {
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(mode === "message" ? true : false);
+  const prevCollapsed = useRef(controlledCollapsed);
+
+  // Respond to parent telling us to collapse
+  useEffect(() => {
+    if (controlledCollapsed === true && prevCollapsed.current !== true) {
+      setExpanded(false);
+    }
+    prevCollapsed.current = controlledCollapsed;
+  }, [controlledCollapsed]);
 
   if (!mapping || mapping.length === 0) return null;
 
-  // Group entities by type for document mode
+  // Group entities by type
   const entityGroups: Record<string, MappingEntry[]> = {};
   for (const m of mapping) {
     const key = m.entity_type.toUpperCase();
@@ -35,61 +46,108 @@ export default function AnonymizationDiff({
     entityGroups[key].push(m);
   }
 
-  // Build highlighted segments from original text
   const segments = buildSegments(originalText, mapping);
 
-  // ---- COMPACT MESSAGE MODE ----
+  // ---- MESSAGE MODE (collapsible) ----
   if (mode === "message") {
     return (
       <div
         style={{
-          padding: "8px 12px",
           borderRadius: "10px",
           background: "rgba(255, 107, 53, 0.04)",
           border: "1px solid rgba(255, 107, 53, 0.12)",
           fontSize: "12px",
           lineHeight: "1.5",
           color: "rgba(255, 255, 255, 0.45)",
+          overflow: "hidden",
+          transition: "all 0.3s ease",
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "4px" }}>
-          <Shield style={{ width: "12px", height: "12px", color: "#ff6b35", opacity: 0.7 }} />
-          <span style={{ color: "rgba(255, 107, 53, 0.7)", fontWeight: 500 }}>
-            {mapping.length} {mapping.length === 1 ? "entity" : "entities"} shielded
-          </span>
-        </div>
-
-        {/* Inline highlighted text — truncate if long */}
-        <div style={{ marginBottom: "4px" }}>
-          {segments.slice(0, 20).map((seg, i) =>
-            seg.isEntity ? (
-              <span
-                key={i}
-                title={`${seg.entityType} → ${seg.replacement}`}
-                style={{
-                  background: "rgba(255, 107, 53, 0.12)",
-                  color: "#ff6b35",
-                  padding: "0 3px",
-                  borderRadius: "3px",
-                  textDecoration: "line-through",
-                  textDecorationColor: "rgba(255, 107, 53, 0.3)",
-                  cursor: "help",
-                }}
-              >
-                {seg.text}
-              </span>
-            ) : (
-              <span key={i}>
-                {seg.text.length > 60 ? seg.text.slice(0, 60) + "..." : seg.text}
-              </span>
-            )
+        {/* Header — always visible, clickable */}
+        <button
+          onClick={() => setExpanded(!expanded)}
+          style={{
+            width: "100%",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            padding: expanded ? "8px 12px 4px" : "6px 12px",
+            background: "transparent",
+            border: "none",
+            cursor: "pointer",
+            color: "rgba(255, 255, 255, 0.45)",
+            transition: "padding 0.2s ease",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+            <Shield style={{ width: "12px", height: "12px", color: "#ff6b35", opacity: 0.7 }} />
+            <span style={{ color: "rgba(255, 107, 53, 0.7)", fontWeight: 500, fontSize: "11px" }}>
+              {mapping.length} {mapping.length === 1 ? "entity" : "entities"} shielded
+            </span>
+            {!expanded && (
+              <div style={{ display: "flex", gap: "3px", marginLeft: "4px" }}>
+                {Object.entries(entityGroups).map(([type, entries]) => (
+                  <span
+                    key={type}
+                    style={{
+                      fontSize: "9px",
+                      padding: "0px 5px",
+                      borderRadius: "6px",
+                      background: "rgba(255, 107, 53, 0.08)",
+                      color: "rgba(255, 107, 53, 0.5)",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.3px",
+                    }}
+                  >
+                    {type} ({entries.length})
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+          {expanded ? (
+            <ChevronUp style={{ width: "12px", height: "12px", opacity: 0.3 }} />
+          ) : (
+            <ChevronDown style={{ width: "12px", height: "12px", opacity: 0.3 }} />
           )}
-        </div>
+        </button>
 
-        {/* What AI sees */}
-        <div style={{ fontStyle: "italic", opacity: 0.5, fontSize: "11px" }}>
-          AI sees: {anonymizedText.length > 100 ? anonymizedText.slice(0, 100) + "…" : anonymizedText}
-        </div>
+        {/* Expanded content */}
+        {expanded && (
+          <div style={{ padding: "0 12px 8px" }}>
+            {/* Inline highlighted text */}
+            <div style={{ marginBottom: "4px" }}>
+              {segments.slice(0, 20).map((seg, i) =>
+                seg.isEntity ? (
+                  <span
+                    key={i}
+                    title={`${seg.entityType} → ${seg.replacement}`}
+                    style={{
+                      background: "rgba(255, 107, 53, 0.12)",
+                      color: "#ff6b35",
+                      padding: "0 3px",
+                      borderRadius: "3px",
+                      textDecoration: "line-through",
+                      textDecorationColor: "rgba(255, 107, 53, 0.3)",
+                      cursor: "help",
+                    }}
+                  >
+                    {seg.text}
+                  </span>
+                ) : (
+                  <span key={i}>
+                    {seg.text.length > 60 ? seg.text.slice(0, 60) + "..." : seg.text}
+                  </span>
+                )
+              )}
+            </div>
+
+            {/* What AI sees */}
+            <div style={{ fontStyle: "italic", opacity: 0.5, fontSize: "11px" }}>
+              AI sees: {anonymizedText.length > 100 ? anonymizedText.slice(0, 100) + "…" : anonymizedText}
+            </div>
+          </div>
+        )}
       </div>
     );
   }
@@ -104,7 +162,6 @@ export default function AnonymizationDiff({
         overflow: "hidden",
       }}
     >
-      {/* Header — always visible */}
       <button
         onClick={() => setExpanded(!expanded)}
         style={{
@@ -124,7 +181,6 @@ export default function AnonymizationDiff({
           <span style={{ fontSize: "13px", fontWeight: 500, color: "rgba(255, 107, 53, 0.8)" }}>
             {mapping.length} {mapping.length === 1 ? "entity" : "entities"} shielded
           </span>
-          {/* Entity type pills */}
           <div style={{ display: "flex", gap: "4px", flexWrap: "wrap" }}>
             {Object.entries(entityGroups).map(([type, entries]) => (
               <span
@@ -151,10 +207,8 @@ export default function AnonymizationDiff({
         )}
       </button>
 
-      {/* Expanded content */}
       {expanded && (
         <div style={{ padding: "0 14px 12px" }}>
-          {/* Entity table */}
           <div
             style={{
               maxHeight: "200px",
@@ -191,7 +245,6 @@ export default function AnonymizationDiff({
             </table>
           </div>
 
-          {/* Preview of anonymized text */}
           <div style={{ fontSize: "11px", color: "rgba(255,255,255,0.3)", fontStyle: "italic" }}>
             AI sees: {anonymizedText.length > 200 ? anonymizedText.slice(0, 200) + "…" : anonymizedText}
           </div>
