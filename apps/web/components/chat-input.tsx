@@ -8,7 +8,6 @@ import { anonymizeText } from "@/lib/anonymizer/anonymizer";
 import { initGliner, isGlinerReady } from "@/lib/anonymizer/gliner-engine";
 import { deAnonymize } from "@/lib/anonymizer/de-anonymizer";
 import PrivacyShield from "@/components/privacy-shield";
-import BurnButton from "@/components/burn-button";
 import AnonymizationDiff from "@/components/anonymization-diff";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -88,7 +87,6 @@ export default function ChatInput() {
     mapping: import("@/store/session-store").MappingEntry[];
     context?: string;
   } | null>(null);
-  const [diffCollapsed, setDiffCollapsed] = useState(false);
   const pendingMessageRef = useRef<string | null>(null);
 
   // Poll for model readiness (checks every 500ms until ready)
@@ -109,6 +107,12 @@ export default function ChatInput() {
     const interval = setInterval(check, 500);
     return () => clearInterval(interval);
   }, [modelReady]);
+  // Auto-clear diff banner after 8 seconds
+  useEffect(() => {
+    if (!lastDiff) return;
+    const timer = setTimeout(() => setLastDiff(null), 8000);
+    return () => clearTimeout(timer);
+  }, [lastDiff]);
 
   const [isRecording, setIsRecording] = useState(false);
   const [analyserNode, setAnalyserNode] = useState<AnalyserNode | null>(null);
@@ -257,15 +261,6 @@ export default function ChatInput() {
   }, [stopRecording]);
 
   // ---- SEND LOGIC ----
-  // Auto-collapse diff when AI finishes responding
-  const prevStreamingRef = useRef(false);
-  useEffect(() => {
-    if (prevStreamingRef.current && !isStreaming && lastDiff) {
-      setDiffCollapsed(true);
-    }
-    prevStreamingRef.current = isStreaming;
-  }, [isStreaming, lastDiff]);
-
   const doSendRef = useRef<((msg: string) => Promise<void>) | null>(null);
   const doSend = useCallback(async (messageText: string) => {
     const trimmed = messageText.trim();
@@ -298,11 +293,15 @@ export default function ChatInput() {
             mapping: activeMapping,
             context: anonResult.detectedContext,
           });
-          setDiffCollapsed(false);
+        } else {
+          setLastDiff(null);
         }
       } catch (err) {
         console.warn("Anonymization failed, sending raw:", err);
+        setLastDiff(null);
       }
+    } else {
+      setLastDiff(null);
     }
 
     const chatHistory = messages
@@ -469,7 +468,6 @@ export default function ChatInput() {
               originalText={lastDiff.original}
               anonymizedText={lastDiff.anonymized}
               mapping={lastDiff.mapping}
-              collapsed={diffCollapsed}
             />
             {lastDiff.context && lastDiff.context !== "general" && (
               <div style={{
@@ -542,7 +540,6 @@ export default function ChatInput() {
             <span style={{ fontSize: "11px", color: privacyEnabled ? "rgba(255, 107, 53, 0.6)" : "rgba(255,255,255,0.2)" }}>
               {privacyEnabled ? (modelReady ? "Privacy Shield active" : "Privacy Shield (loading model…)") : "Privacy Shield off"}
             </span>
-            <BurnButton />
           </div>
           <textarea
               ref={textareaRef}
