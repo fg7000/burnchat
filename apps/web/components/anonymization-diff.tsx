@@ -315,3 +315,4 @@ function buildSegments(
 
   return segments;
 }
+export { AnonymizationDiff };
