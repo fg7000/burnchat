@@ -102,7 +102,7 @@ export async function detectEntities(text: string): Promise<Array<{
     const results = await glinerInstance.inference({
       texts: [text],
       entities: ENTITY_LABELS,
-      threshold: 0.4,
+      threshold: 0.6,
       flatNer: true,
     });
 

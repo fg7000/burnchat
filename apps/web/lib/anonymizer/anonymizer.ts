@@ -24,6 +24,7 @@ interface DetectedEntity {
   start: number;
   end: number;
   label: string;
+  score?: number;
 }
 
 /**
@@ -151,12 +152,18 @@ export async function anonymizeText(
         start: e.start,
         end: e.end,
         label: e.label,
+        score: e.score,
       });
     }
   }
 
-  // Filter out common words and short entities (false positives)
-  const COMMON_WORDS = new Set([
+  // ── Intelligent false-positive filtering ──
+  // Three layers:
+  //   1. Role/title words (static, fast)
+  //   2. Common English words that GLiNER misclassifies as entities
+  //   3. Heuristic checks: capitalization, word count, confidence score
+
+  const ROLE_WORDS = new Set([
     "lawyer", "doctor", "nurse", "judge", "attorney", "plaintiff",
     "defendant", "patient", "client", "officer", "manager", "director",
     "president", "ceo", "cfo", "teacher", "professor", "engineer",
@@ -165,11 +172,85 @@ export async function anonymizeText(
     "accountant", "auditor", "secretary", "assistant", "intern",
   ]);
 
-  const filtered = allEntities.filter((e) => {
+  // Common English words GLiNER frequently misclassifies as person/org/location
+  const COMMON_ENGLISH = new Set([
+    "study", "studies", "investigation", "investigations", "research",
+    "report", "reports", "analysis", "review", "reviews", "survey",
+    "evidence", "findings", "results", "conclusion", "conclusions",
+    "article", "articles", "paper", "papers", "journal", "publication",
+    "document", "documents", "agreement", "contract", "policy", "policies",
+    "program", "programs", "project", "projects", "system", "systems",
+    "service", "services", "product", "products", "process", "plan",
+    "method", "approach", "strategy", "framework", "model", "standard",
+    "practice", "practices", "procedure", "procedures", "protocol",
+    "committee", "commission", "council", "board", "panel", "team",
+    "department", "division", "unit", "section", "office", "agency",
+    "association", "foundation", "institute", "institution", "center",
+    "authority", "administration", "ministry", "bureau", "registry",
+    "coalition", "alliance", "federation", "union", "league", "forum",
+    "network", "group", "society", "chapter", "branch", "corporation",
+    "company", "firm", "enterprise", "business", "industry", "market",
+    "bank", "exchange", "fund", "trust", "estate", "property",
+    "court", "tribunal", "hearing", "trial", "case", "motion",
+    "petition", "complaint", "claim", "charge", "appeal", "order",
+    "session", "meeting", "conference", "summit", "workshop", "seminar",
+    "campaign", "movement", "initiative", "effort", "operation",
+    "community", "population", "public", "government", "state",
+    "country", "nation", "region", "area", "district", "territory",
+    "province", "county", "city", "town", "village", "neighborhood",
+    "world", "global", "international", "national", "local", "federal",
+    "general", "special", "specific", "major", "primary", "secondary",
+    "health", "medical", "clinical", "scientific", "academic", "legal",
+    "financial", "economic", "political", "social", "environmental",
+    "technology", "information", "data", "internet", "media", "press",
+    "education", "training", "development", "management", "security",
+    "defense", "intelligence", "justice", "law", "regulation",
+  ]);
+
+  /**
+   * Smart check: is this entity likely a real named entity, or a common word?
+   * Real entities tend to be: capitalized, multi-word, high confidence, proper nouns.
+   * False positives tend to be: lowercase, single common words, lower confidence.
+   */
+  function isLikelyRealEntity(e: DetectedEntity, originalText: string): boolean {
+    const lower = e.text.toLowerCase();
+
+    // Always filter role words
+    if (ROLE_WORDS.has(lower)) return false;
+
+    // Always filter common English words
+    if (COMMON_ENGLISH.has(lower)) return false;
+
+    // Too short to be meaningful
     if (e.text.length <= 2) return false;
-    if (COMMON_WORDS.has(e.text.toLowerCase())) return false;
+
+    // Check if the word appears capitalized in the original text
+    const inContext = originalText.slice(e.start, e.end);
+    const isCapitalized = inContext[0] === inContext[0].toUpperCase() && inContext[0] !== inContext[0].toLowerCase();
+
+    // Single word, not capitalized, not from regex = almost certainly a false positive
+    const wordCount = e.text.trim().split(/\s+/).length;
+    if (wordCount === 1 && !isCapitalized && e.score !== undefined) {
+      return false;
+    }
+
+    // Single common word even if capitalized at start of sentence — require high confidence
+    if (wordCount === 1 && e.score !== undefined && e.score < 0.75) {
+      // Check if it's at the start of a sentence (capitalized by grammar, not because it's a name)
+      const beforeEntity = originalText.slice(Math.max(0, e.start - 2), e.start).trim();
+      const isStartOfSentence = e.start === 0 || beforeEntity.endsWith(".") || beforeEntity.endsWith("?") || beforeEntity.endsWith("!") || beforeEntity.endsWith("\n");
+      if (isStartOfSentence) return false;
+    }
+
+    // Low confidence + single word = skip
+    if (wordCount === 1 && e.score !== undefined && e.score < 0.7) {
+      return false;
+    }
+
     return true;
-  });
+  }
+
+  const filtered = allEntities.filter((e) => isLikelyRealEntity(e, text));
 
   // No entities found — return as-is
   if (filtered.length === 0) {
