@@ -49,8 +49,10 @@ export default function TopBar() {
   return (
     <nav className="flex justify-between items-center px-8 py-4 relative z-10" style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
       <div className="flex items-center gap-2.5">
-        <div className="flex items-center justify-center" style={{ width: "30px", height: "30px", borderRadius: "8px", background: "linear-gradient(135deg, #ff6b35, #ff3c1e)", fontSize: "14px", fontWeight: 500, color: "#0a0a0b", fontFamily: "'JetBrains Mono', monospace", letterSpacing: "-1px" }}>B</div>
-        <span style={{ fontSize: "16px", fontWeight: 500, letterSpacing: "-0.02em", color: "#fff", fontFamily: "'DM Sans', sans-serif" }}>burnchat</span>
+        <div className="flex items-center justify-center" style={{ width: "28px", height: "28px", borderRadius: "7px", background: "#161618", border: "1px solid rgba(255,255,255,0.06)", fontSize: "15px" }}>🔥</div>
+        <span style={{ fontSize: "15px", fontWeight: 500, letterSpacing: "-0.02em", color: "#fff", fontFamily: "'DM Sans', sans-serif" }}>burnchat</span>
+        <div style={{ width: "1px", height: "16px", background: "rgba(255,255,255,0.08)", marginLeft: "2px", marginRight: "2px" }} />
+        <span style={{ fontSize: "12px", color: "#ff6b35", fontWeight: 500, fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.01em" }}>The VPN for AI</span>
       </div>
       <div className="flex items-center gap-5">
         <ModelSelector />
