@@ -5,6 +5,7 @@ import { useSessionStore } from "@/store/session-store";
 import { signInWithGoogle } from "@/lib/auth";
 import ModelSelector from "./model-selector";
 import CreditDisplay from "./credit-display";
+import BurnButton from "./burn-button";
 
 export default function TopBar() {
   const [signingIn, setSigningIn] = useState(false);
@@ -55,6 +56,7 @@ export default function TopBar() {
         <span style={{ fontSize: "12px", color: "#ff6b35", fontWeight: 500, fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.01em" }}>The VPN for AI</span>
       </div>
       <div className="flex items-center gap-5">
+        <BurnButton />
         <ModelSelector />
         <CreditDisplay />
         {token ? (
