@@ -92,7 +92,6 @@ export default function ChatInput() {
   const pendingMessageRef = useRef<string | null>(null);
 
   // Auto-collapse diff when AI finishes responding
-  const isStreaming = useSessionStore((s) => s.isStreaming);
   const prevStreamingRef = useRef(false);
   useEffect(() => {
     if (prevStreamingRef.current && !isStreaming && lastDiff) {
@@ -119,12 +118,6 @@ export default function ChatInput() {
     const interval = setInterval(check, 500);
     return () => clearInterval(interval);
   }, [modelReady]);
-  // Auto-clear diff banner after 8 seconds
-  useEffect(() => {
-    if (!lastDiff) return;
-    const timer = setTimeout(() => setLastDiff(null), 8000);
-    return () => clearTimeout(timer);
-  }, [lastDiff]);
 
   const [isRecording, setIsRecording] = useState(false);
   const [analyserNode, setAnalyserNode] = useState<AnalyserNode | null>(null);
