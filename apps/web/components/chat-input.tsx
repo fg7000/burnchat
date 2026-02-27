@@ -91,15 +91,6 @@ export default function ChatInput() {
   const [diffCollapsed, setDiffCollapsed] = useState(false);
   const pendingMessageRef = useRef<string | null>(null);
 
-  // Auto-collapse diff when AI finishes responding
-  const prevStreamingRef = useRef(false);
-  useEffect(() => {
-    if (prevStreamingRef.current && !isStreaming && lastDiff) {
-      setDiffCollapsed(true);
-    }
-    prevStreamingRef.current = isStreaming;
-  }, [isStreaming, lastDiff]);
-
   // Poll for model readiness (checks every 500ms until ready)
   useEffect(() => {
     if (modelReady) return;
@@ -266,6 +257,15 @@ export default function ChatInput() {
   }, [stopRecording]);
 
   // ---- SEND LOGIC ----
+  // Auto-collapse diff when AI finishes responding
+  const prevStreamingRef = useRef(false);
+  useEffect(() => {
+    if (prevStreamingRef.current && !isStreaming && lastDiff) {
+      setDiffCollapsed(true);
+    }
+    prevStreamingRef.current = isStreaming;
+  }, [isStreaming, lastDiff]);
+
   const doSendRef = useRef<((msg: string) => Promise<void>) | null>(null);
   const doSend = useCallback(async (messageText: string) => {
     const trimmed = messageText.trim();
