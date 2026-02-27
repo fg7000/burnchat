@@ -4,6 +4,7 @@ import React, { useState, useRef, useEffect, useCallback } from "react";
 import { useUIStore } from "@/store/ui-store";
 import { useSessionStore } from "@/store/session-store";
 import { apiClient } from "@/lib/api-client";
+import { anonymizeDocument } from "@/lib/anonymizer/anonymizer";
 import { FileText, Link, Folder, FileEdit, X, Loader2 } from "lucide-react";
 import { parseImage } from "@/lib/parsers/ocr-parser";
 
@@ -151,13 +152,13 @@ export default function AttachmentMenu() {
         updateDocumentStatus(filename, "anonymizing", { text, progress: 50, progressDetail: "Anonymizing..." });
 
         setSessionMode("quick");
-        const result = await apiClient.anonymizeChunked(text, token, (pct, detail) => {
+        const result = await anonymizeDocument(text, (pct, detail) => {
           updateDocumentStatus(filename, "anonymizing", { progress: 50 + Math.round(pct * 0.5), progressDetail: detail });
         });
 
         updateDocumentStatus(filename, "ready", {
           anonymizedText: result.anonymized_text, mapping: result.mapping,
-          entitiesFound: result.entities_found ?? [], tokenCount: result.token_count ?? 0, progress: 100,
+          entitiesFound: result.entities_found ?? [], tokenCount: 0, progress: 100,
         });
         setCurrentMapping(result.mapping);
       } else {
@@ -186,12 +187,12 @@ export default function AttachmentMenu() {
 
         for (const doc of parsedDocs) {
           updateDocumentStatus(doc.filename, "anonymizing", { progress: 60, progressDetail: "Anonymizing..." });
-          const result = await apiClient.anonymizeChunked(doc.text, token, (pct, detail) => {
+          const result = await anonymizeDocument(doc.text, (pct, detail) => {
             updateDocumentStatus(doc.filename, "anonymizing", { progress: 60 + Math.round(pct * 0.4), progressDetail: detail });
           });
           updateDocumentStatus(doc.filename, "ready", {
             anonymizedText: result.anonymized_text, mapping: result.mapping,
-            entitiesFound: result.entities_found ?? [], tokenCount: result.token_count ?? 0, progress: 100,
+            entitiesFound: result.entities_found ?? [], tokenCount: 0, progress: 100,
           });
           combinedMapping = [...combinedMapping, ...result.mapping];
         }
@@ -243,11 +244,11 @@ export default function AttachmentMenu() {
       updateDocumentStatus(filename, "anonymizing", { text, progress: 50, progressDetail: "Anonymizing..." });
 
       setSessionMode("quick");
-      const anonResult = await apiClient.anonymizeChunked(text, token);
+      const anonResult = await anonymizeDocument(text);
 
       updateDocumentStatus(filename, "ready", {
         anonymizedText: anonResult.anonymized_text, mapping: anonResult.mapping,
-        entitiesFound: anonResult.entities_found ?? [], tokenCount: anonResult.token_count ?? 0, progress: 100,
+        entitiesFound: anonResult.entities_found ?? [], tokenCount: 0, progress: 100,
       });
       setCurrentMapping(anonResult.mapping);
     } catch (error) {
@@ -313,11 +314,11 @@ export default function AttachmentMenu() {
       addMessage({ id: `doc-${Date.now()}`, role: "system", content: `[document:${pasteFilename}]` });
 
       setSessionMode("quick");
-      const result = await apiClient.anonymizeChunked(pastedText, token);
+      const result = await anonymizeDocument(pastedText);
 
       updateDocumentStatus(pasteFilename, "ready", {
         anonymizedText: result.anonymized_text, mapping: result.mapping,
-        entitiesFound: result.entities_found ?? [], tokenCount: result.token_count ?? 0,
+        entitiesFound: result.entities_found ?? [], tokenCount: 0,
       });
       setCurrentMapping(result.mapping);
     } catch (error) {
