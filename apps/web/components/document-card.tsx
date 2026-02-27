@@ -9,148 +9,251 @@ import {
   Loader2,
   CheckCircle2,
   AlertCircle,
+  Eye,
+  EyeOff,
+  ArrowRight,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { type DocumentInfo } from "@/store/session-store";
-import AnonymizationDiff from "@/components/anonymization-diff";
+import { type DocumentInfo, type MappingEntry } from "@/store/session-store";
 
 interface DocumentCardProps {
   document: DocumentInfo;
 }
 
-const statusConfig: Record<
-  DocumentInfo["status"],
-  { label: string; icon: React.ReactNode; color: string }
-> = {
-  parsing: {
-    label: "Parsing document...",
-    icon: <Loader2 className="h-3.5 w-3.5 animate-spin" />,
-    color: "text-gray-400",
-  },
-  anonymizing: {
-    label: "Anonymizing content...",
-    icon: <Loader2 className="h-3.5 w-3.5 animate-spin" />,
-    color: "text-gray-300",
-  },
-  embedding: {
-    label: "Creating embeddings...",
-    icon: <Loader2 className="h-3.5 w-3.5 animate-spin" />,
-    color: "text-gray-300",
-  },
-  ready: {
-    label: "Ready",
-    icon: <CheckCircle2 className="h-3.5 w-3.5" />,
-    color: "text-white",
-  },
-  error: {
-    label: "Error",
-    icon: <AlertCircle className="h-3.5 w-3.5" />,
-    color: "text-gray-400",
-  },
+function groupByType(mapping: MappingEntry[]): Record<string, MappingEntry[]> {
+  const groups: Record<string, MappingEntry[]> = {};
+  for (const m of mapping) {
+    const key = m.entity_type.toUpperCase();
+    if (!groups[key]) groups[key] = [];
+    groups[key].push(m);
+  }
+  return groups;
+}
+
+const TYPE_COLORS: Record<string, { bg: string; text: string; dot: string }> = {
+  PERSON: { bg: "rgba(255, 107, 53, 0.1)", text: "#ff6b35", dot: "#ff6b35" },
+  LOCATION: { bg: "rgba(59, 130, 246, 0.1)", text: "#60a5fa", dot: "#3b82f6" },
+  ORGANIZATION: { bg: "rgba(168, 85, 247, 0.1)", text: "#c084fc", dot: "#a855f7" },
+  DATE_TIME: { bg: "rgba(234, 179, 8, 0.1)", text: "#fbbf24", dot: "#eab308" },
+  EMAIL_ADDRESS: { bg: "rgba(20, 184, 166, 0.1)", text: "#5eead4", dot: "#14b8a6" },
+  EMAIL: { bg: "rgba(20, 184, 166, 0.1)", text: "#5eead4", dot: "#14b8a6" },
+  PHONE: { bg: "rgba(244, 114, 182, 0.1)", text: "#f472b6", dot: "#ec4899" },
+  SSN: { bg: "rgba(239, 68, 68, 0.1)", text: "#f87171", dot: "#ef4444" },
+  ADDRESS: { bg: "rgba(251, 146, 60, 0.1)", text: "#fb923c", dot: "#f97316" },
+  DEFAULT: { bg: "rgba(255, 255, 255, 0.05)", text: "rgba(255,255,255,0.5)", dot: "rgba(255,255,255,0.3)" },
 };
+
+function getTypeColor(type: string) {
+  return TYPE_COLORS[type.toUpperCase()] || TYPE_COLORS.DEFAULT;
+}
 
 export function DocumentCard({ document }: DocumentCardProps) {
   const [showAnonymized, setShowAnonymized] = useState(false);
   const [showChanges, setShowChanges] = useState(false);
+  const [expandedType, setExpandedType] = useState<string | null>(null);
 
-  const status = statusConfig[document.status];
-  const totalEntities = document.entitiesFound.reduce(
-    (sum, e) => sum + e.count,
-    0
-  );
+  const totalEntities = document.entitiesFound.reduce((sum, e) => sum + e.count, 0);
+  const groups = groupByType(document.mapping);
+  const isProcessing = document.status !== "ready" && document.status !== "error";
 
   return (
-    <div className="rounded-lg border border-gray-700 bg-gray-800/50 p-3">
-      {/* Header row */}
-      <div className="flex items-start justify-between gap-2">
-        <div className="flex items-center gap-2 min-w-0">
-          <FileText className="h-4 w-4 shrink-0 text-gray-400" />
-          <span className="truncate text-sm font-medium text-gray-200">
-            {document.filename}
-          </span>
+    <div
+      style={{
+        borderRadius: "14px",
+        background: "rgba(255, 255, 255, 0.02)",
+        border: "1px solid rgba(255, 255, 255, 0.06)",
+        overflow: "hidden",
+      }}
+    >
+      {/* Header */}
+      <div
+        style={{
+          padding: "14px 18px",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          borderBottom: "1px solid rgba(255,255,255,0.04)",
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: "10px", minWidth: 0 }}>
+          <div
+            style={{
+              width: "32px",
+              height: "32px",
+              borderRadius: "8px",
+              background: "rgba(255, 107, 53, 0.08)",
+              border: "1px solid rgba(255, 107, 53, 0.15)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              flexShrink: 0,
+            }}
+          >
+            <FileText style={{ width: "16px", height: "16px", color: "#ff6b35" }} />
+          </div>
+          <div style={{ minWidth: 0 }}>
+            <div
+              style={{
+                fontSize: "13px",
+                fontWeight: 500,
+                color: "#fff",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+                fontFamily: "'DM Sans', sans-serif",
+              }}
+            >
+              {document.filename}
+            </div>
+            {document.tokenCount > 0 && (
+              <div style={{ fontSize: "11px", color: "rgba(255,255,255,0.25)", marginTop: "2px" }}>
+                {document.tokenCount.toLocaleString()} tokens
+                {document.chunkCount ? ` \u00b7 ${document.chunkCount} chunks` : ""}
+              </div>
+            )}
+          </div>
         </div>
-        <div className={cn("flex items-center gap-1 text-xs shrink-0", status.color)}>
-          {status.icon}
-          <span>{status.label}</span>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "6px",
+            fontSize: "12px",
+            color: document.status === "ready" ? "#22c55e" : document.status === "error" ? "#ef4444" : "rgba(255,255,255,0.4)",
+            flexShrink: 0,
+          }}
+        >
+          {document.status === "ready" ? (
+            <CheckCircle2 style={{ width: "14px", height: "14px" }} />
+          ) : document.status === "error" ? (
+            <AlertCircle style={{ width: "14px", height: "14px" }} />
+          ) : (
+            <Loader2 style={{ width: "14px", height: "14px", animation: "spin 1s linear infinite" }} />
+          )}
+          <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: "11px" }}>
+            {document.status === "ready" ? "Ready" : document.status === "error" ? "Error" : document.progressDetail || "Processing..."}
+          </span>
         </div>
       </div>
 
-      {/* Error detail */}
-      {document.status === "error" && document.errorDetail && (
-        <p className="mt-1.5 text-xs text-gray-500">{document.errorDetail}</p>
-      )}
-
       {/* Progress bar */}
-      {document.progress !== undefined &&
-        document.status !== "ready" &&
-        document.status !== "error" && (
-          <div className="mt-2 space-y-1">
-            <div className="h-1.5 w-full rounded-full bg-gray-700 overflow-hidden">
-              <div
-                className={cn(
-                  "h-full rounded-full transition-all duration-300 ease-out",
-                  document.status === "parsing" && "bg-gray-400",
-                  document.status === "anonymizing" && "bg-gray-300",
-                  document.status === "embedding" && "bg-white"
-                )}
-                style={{ width: `${Math.min(document.progress, 100)}%` }}
-              />
-            </div>
-            <div className="flex items-center justify-between text-[10px] text-gray-500">
-              <span>{document.progressDetail ?? ""}</span>
-              <span>{Math.round(document.progress)}%</span>
-            </div>
+      {isProcessing && document.progress !== undefined && (
+        <div style={{ padding: "0 18px", paddingTop: "8px" }}>
+          <div style={{ height: "3px", borderRadius: "2px", background: "rgba(255,255,255,0.06)", overflow: "hidden" }}>
+            <div
+              style={{
+                height: "100%",
+                borderRadius: "2px",
+                background: "linear-gradient(90deg, #ff6b35, #ff3c1e)",
+                width: `${Math.min(document.progress, 100)}%`,
+                transition: "width 0.3s ease-out",
+              }}
+            />
           </div>
-        )}
-
-      {/* Entity summary */}
-      {document.entitiesFound.length > 0 && (
-        <div className="mt-2 flex flex-wrap gap-1.5">
-          <div className="flex items-center gap-1 rounded bg-gray-700 px-2 py-0.5 text-xs text-gray-200">
-            <Shield className="h-3 w-3" />
-            {totalEntities} entities found
+          <div style={{ fontSize: "10px", color: "rgba(255,255,255,0.2)", textAlign: "right", marginTop: "4px" }}>
+            {Math.round(document.progress)}%
           </div>
-          {document.entitiesFound.map((entity) => (
-            <span
-              key={entity.type}
-              className="rounded bg-gray-700 px-2 py-0.5 text-xs text-gray-400"
-            >
-              {entity.type}: {entity.count}
-            </span>
-          ))}
         </div>
       )}
 
-      {/* Token info */}
-      {document.tokenCount > 0 && (
-        <p className="mt-1.5 text-xs text-gray-500">
-          {document.tokenCount.toLocaleString()} tokens
-          {document.chunkCount ? ` \u00b7 ${document.chunkCount} chunks` : ""}
-        </p>
+      {/* Error detail */}
+      {document.status === "error" && document.errorDetail && (
+        <div style={{ padding: "8px 18px", fontSize: "12px", color: "rgba(239, 68, 68, 0.7)" }}>
+          {document.errorDetail}
+        </div>
+      )}
+
+      {/* Entity summary pills */}
+      {document.entitiesFound.length > 0 && (
+        <div style={{ padding: "12px 18px", display: "flex", flexWrap: "wrap", gap: "6px", borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "5px",
+              padding: "3px 10px",
+              borderRadius: "8px",
+              background: "rgba(255, 107, 53, 0.08)",
+              border: "1px solid rgba(255, 107, 53, 0.15)",
+              fontSize: "11px",
+              fontWeight: 500,
+              color: "#ff6b35",
+            }}
+          >
+            <Shield style={{ width: "12px", height: "12px" }} />
+            {totalEntities} shielded
+          </div>
+          {document.entitiesFound.map((entity) => {
+            const colors = getTypeColor(entity.type);
+            return (
+              <span
+                key={entity.type}
+                style={{
+                  padding: "3px 10px",
+                  borderRadius: "8px",
+                  background: colors.bg,
+                  fontSize: "11px",
+                  color: colors.text,
+                  fontFamily: "'JetBrains Mono', monospace",
+                  letterSpacing: "0.02em",
+                }}
+              >
+                {entity.type}: {entity.count}
+              </span>
+            );
+          })}
+        </div>
       )}
 
       {/* Expandable sections */}
       {document.status === "ready" && (
-        <div className="mt-3 space-y-2">
+        <div>
           {/* View anonymized version */}
           {document.anonymizedText && (
-            <div>
+            <div style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
               <button
                 onClick={() => setShowAnonymized(!showAnonymized)}
-                className="flex w-full items-center gap-1 text-xs text-gray-400 transition-colors hover:text-gray-200"
+                style={{
+                  width: "100%",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  padding: "10px 18px",
+                  background: "transparent",
+                  border: "none",
+                  cursor: "pointer",
+                  color: "rgba(255,255,255,0.45)",
+                  fontSize: "12px",
+                  fontFamily: "'DM Sans', sans-serif",
+                }}
               >
+                <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                  {showAnonymized ? <EyeOff style={{ width: "13px", height: "13px" }} /> : <Eye style={{ width: "13px", height: "13px" }} />}
+                  <span>{showAnonymized ? "Hide" : "View"} what the AI sees</span>
+                </div>
                 {showAnonymized ? (
-                  <ChevronUp className="h-3.5 w-3.5" />
+                  <ChevronUp style={{ width: "13px", height: "13px", opacity: 0.4 }} />
                 ) : (
-                  <ChevronDown className="h-3.5 w-3.5" />
+                  <ChevronDown style={{ width: "13px", height: "13px", opacity: 0.4 }} />
                 )}
-                View anonymized version
               </button>
               {showAnonymized && (
-                <div className="mt-1.5 max-h-48 overflow-y-auto rounded border border-gray-700 bg-gray-900 p-2 text-xs text-gray-300 whitespace-pre-wrap">
-                  {document.anonymizedText.length > 500
-                    ? document.anonymizedText.slice(0, 500) + "\u2026"
-                    : document.anonymizedText}
+                <div
+                  style={{
+                    margin: "0 18px 12px",
+                    maxHeight: "300px",
+                    overflowY: "auto",
+                    borderRadius: "10px",
+                    background: "rgba(0,0,0,0.3)",
+                    border: "1px solid rgba(255,255,255,0.06)",
+                    padding: "14px",
+                    fontSize: "12px",
+                    lineHeight: "1.7",
+                    color: "rgba(255,255,255,0.55)",
+                    whiteSpace: "pre-wrap",
+                    fontFamily: "'JetBrains Mono', monospace",
+                  }}
+                >
+                  {document.anonymizedText}
                 </div>
               )}
             </div>
@@ -161,18 +264,132 @@ export function DocumentCard({ document }: DocumentCardProps) {
             <div>
               <button
                 onClick={() => setShowChanges(!showChanges)}
-                className="flex w-full items-center gap-1 text-xs text-gray-400 transition-colors hover:text-gray-200"
+                style={{
+                  width: "100%",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  padding: "10px 18px",
+                  background: "transparent",
+                  border: "none",
+                  cursor: "pointer",
+                  color: "rgba(255,255,255,0.45)",
+                  fontSize: "12px",
+                  fontFamily: "'DM Sans', sans-serif",
+                }}
               >
+                <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                  <Shield style={{ width: "13px", height: "13px" }} />
+                  <span>{showChanges ? "Hide" : "View"} what was changed</span>
+                  <span style={{ fontSize: "10px", color: "rgba(255,255,255,0.25)", fontFamily: "'JetBrains Mono', monospace" }}>
+                    ({document.mapping.length} replacements)
+                  </span>
+                </div>
                 {showChanges ? (
-                  <ChevronUp className="h-3.5 w-3.5" />
+                  <ChevronUp style={{ width: "13px", height: "13px", opacity: 0.4 }} />
                 ) : (
-                  <ChevronDown className="h-3.5 w-3.5" />
+                  <ChevronDown style={{ width: "13px", height: "13px", opacity: 0.4 }} />
                 )}
-                View what was changed ({document.mapping.length} replacements)
               </button>
+
               {showChanges && (
-                <div className="mt-1.5">
-                  <AnonymizationDiff mapping={document.mapping} />
+                <div style={{ padding: "0 18px 14px" }}>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                    {Object.entries(groups).map(([type, entries]) => {
+                      const colors = getTypeColor(type);
+                      const isExpanded = expandedType === type;
+
+                      return (
+                        <div
+                          key={type}
+                          style={{
+                            borderRadius: "10px",
+                            background: colors.bg,
+                            border: "1px solid " + colors.text + "22",
+                            overflow: "hidden",
+                          }}
+                        >
+                          <button
+                            onClick={() => setExpandedType(isExpanded ? null : type)}
+                            style={{
+                              width: "100%",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "space-between",
+                              padding: "8px 12px",
+                              background: "transparent",
+                              border: "none",
+                              cursor: "pointer",
+                              color: colors.text,
+                            }}
+                          >
+                            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                              <div style={{ width: "6px", height: "6px", borderRadius: "50%", background: colors.dot }} />
+                              <span style={{ fontSize: "11px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em", fontFamily: "'JetBrains Mono', monospace" }}>
+                                {type}
+                              </span>
+                              <span style={{ fontSize: "11px", opacity: 0.6 }}>
+                                {entries.length} {entries.length === 1 ? "replacement" : "replacements"}
+                              </span>
+                            </div>
+                            {isExpanded ? (
+                              <ChevronUp style={{ width: "12px", height: "12px", opacity: 0.5 }} />
+                            ) : (
+                              <ChevronDown style={{ width: "12px", height: "12px", opacity: 0.5 }} />
+                            )}
+                          </button>
+
+                          {isExpanded && (
+                            <div style={{ maxHeight: "250px", overflowY: "auto", padding: "0 12px 10px" }}>
+                              {entries.map((m, i) => (
+                                <div
+                                  key={i}
+                                  style={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: "8px",
+                                    padding: "5px 0",
+                                    borderBottom: i < entries.length - 1 ? "1px solid " + colors.text + "11" : "none",
+                                    fontSize: "12px",
+                                  }}
+                                >
+                                  <span
+                                    style={{
+                                      color: colors.text,
+                                      textDecoration: "line-through",
+                                      textDecorationColor: colors.text + "44",
+                                      flex: 1,
+                                      minWidth: 0,
+                                      overflow: "hidden",
+                                      textOverflow: "ellipsis",
+                                      whiteSpace: "nowrap",
+                                    }}
+                                  >
+                                    {m.original}
+                                  </span>
+                                  <ArrowRight style={{ width: "10px", height: "10px", color: "rgba(255,255,255,0.15)", flexShrink: 0 }} />
+                                  <span
+                                    style={{
+                                      color: "rgba(255,255,255,0.5)",
+                                      fontFamily: "'JetBrains Mono', monospace",
+                                      fontSize: "11px",
+                                      flex: 1,
+                                      minWidth: 0,
+                                      overflow: "hidden",
+                                      textOverflow: "ellipsis",
+                                      whiteSpace: "nowrap",
+                                    }}
+                                  >
+                                    {m.replacement}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               )}
             </div>
