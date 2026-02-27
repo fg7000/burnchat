@@ -82,27 +82,34 @@ textarea { field-sizing: content; }
 /* ── Burn the Chat ── */
 @keyframes pulse-burn {
   0%, 100% { box-shadow: 0 0 4px rgba(255, 60, 30, 0.2); }
-  50% { box-shadow: 0 0 12px rgba(255, 60, 30, 0.4); }
+  50% { box-shadow: 0 0 14px rgba(255, 60, 30, 0.5); }
 }
 
-@keyframes burn-sweep {
-  0% {
-    clip-path: inset(100% 0 0 0);
-    opacity: 1;
-  }
-  60% {
-    clip-path: inset(0 0 0 0);
-    opacity: 1;
-  }
-  100% {
-    clip-path: inset(0 0 0 0);
-    opacity: 0.9;
-  }
+@keyframes burn-flash {
+  0% { opacity: 0; }
+  8% { opacity: 1; }
+  20% { opacity: 0.95; }
+  100% { opacity: 0.85; }
 }
 
-@keyframes ember-rise {
-  0% { transform: translateY(0) scale(1); opacity: 0.8; }
-  100% { transform: translateY(-100vh) scale(0); opacity: 0; }
+@keyframes burn-shake {
+  0%, 100% { transform: translate(0, 0); }
+  10% { transform: translate(-3px, -2px); }
+  20% { transform: translate(4px, 1px); }
+  30% { transform: translate(-2px, 3px); }
+  40% { transform: translate(3px, -1px); }
+  50% { transform: translate(-1px, 2px); }
+  60% { transform: translate(2px, -3px); }
+  70% { transform: translate(-4px, 1px); }
+  80% { transform: translate(1px, -2px); }
+  90% { transform: translate(-2px, 3px); }
+}
+
+@keyframes burn-vignette {
+  0% { opacity: 0; }
+  15% { opacity: 1; }
+  60% { opacity: 0.8; }
+  100% { opacity: 0; }
 }
 
 .burn-overlay {
@@ -111,35 +118,51 @@ textarea { field-sizing: content; }
   z-index: 9999;
   pointer-events: none;
   opacity: 0;
-  background: radial-gradient(ellipse at 50% 100%, rgba(255, 60, 30, 0.5) 0%, rgba(255, 107, 53, 0.15) 40%, transparent 70%);
 }
 
 .burn-overlay.burn-active {
-  animation: burn-sweep 1.2s ease-out forwards;
+  animation: burn-flash 0.7s ease-out forwards;
+  background:
+    radial-gradient(ellipse at 50% 110%, rgba(255, 80, 20, 0.9) 0%, rgba(255, 40, 0, 0.6) 25%, transparent 55%),
+    radial-gradient(ellipse at 30% 100%, rgba(255, 160, 50, 0.4) 0%, transparent 40%),
+    radial-gradient(ellipse at 70% 100%, rgba(255, 120, 30, 0.4) 0%, transparent 40%);
 }
 
-.burn-overlay.burn-active::before,
+/* Vignette layer — dark edges for intensity */
+.burn-overlay.burn-active::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at 50% 50%, transparent 30%, rgba(0, 0, 0, 0.4) 100%);
+  animation: burn-vignette 0.7s ease-out forwards;
+}
+
+/* White-hot flash at the bottom */
 .burn-overlay.burn-active::after {
   content: '';
   position: absolute;
   bottom: 0;
-  width: 4px;
-  height: 4px;
-  border-radius: 50%;
-  background: #ff6b35;
+  left: 10%;
+  right: 10%;
+  height: 120px;
+  background: radial-gradient(ellipse at 50% 100%, rgba(255, 255, 200, 0.6) 0%, rgba(255, 160, 50, 0.3) 40%, transparent 70%);
+  filter: blur(20px);
+  animation: burn-flash 0.5s ease-out forwards;
 }
 
-.burn-overlay.burn-active::before {
-  left: 30%;
-  animation: ember-rise 1.4s ease-out 0.2s forwards;
-}
-
-.burn-overlay.burn-active::after {
-  left: 65%;
-  animation: ember-rise 1.6s ease-out 0.4s forwards;
+.burn-shaking {
+  animation: burn-shake 0.4s ease-in-out;
 }
 
 .burn-overlay.burn-fade-out {
-  transition: opacity 0.6s ease-out;
+  transition: opacity 0.4s ease-out;
   opacity: 0 !important;
+}
+
+/* Ember particle base */
+.burn-ember {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+  will-change: transform, opacity;
 }
