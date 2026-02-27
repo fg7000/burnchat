@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { type DocumentInfo } from "@/store/session-store";
-import { AnonymizationDiff } from "@/components/anonymization-diff";
+import AnonymizationDiff from "@/components/anonymization-diff";
 
 interface DocumentCardProps {
   document: DocumentInfo;
