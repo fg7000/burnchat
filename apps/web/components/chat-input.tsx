@@ -77,49 +77,66 @@ function AudioBars({ analyser }: { analyser: AnalyserNode | null }) {
   );
 }
 
+const LOADING_MESSAGES = [
+  "Deploying on-device privacy model\u2026",
+  "Building local encryption layer\u2026",
+  "No data leaves your browser\u2026",
+  "Initializing PII scanner\u2026",
+  "Preparing entity recognition\u2026",
+  "Configuring zero-trust pipeline\u2026",
+  "Almost there\u2026",
+];
+
 export default function ChatInput() {
   const [text, setText] = useState("");
   const [privacyEnabled, setPrivacyEnabled] = useState(true);
   const [modelReady, setModelReady] = useState(false);
   const [loadingStage, setLoadingStage] = useState("");
-  const [typedText, setTypedText] = useState("");
-  const [targetText, setTargetText] = useState("");
+  const [fakeProgress, setFakeProgress] = useState(0);
+  const [statusMsg, setStatusMsg] = useState("");
+  const [msgIndex, setMsgIndex] = useState(0);
 
-  // Typewriter effect for loading stages
+  // Smooth fake progress that asymptotically approaches 95%
   useEffect(() => {
-    let newTarget = "";
-    if (!privacyEnabled) {
-      newTarget = "Privacy Shield off";
-    } else if (modelReady) {
-      newTarget = "Privacy Shield active \u2014 on-device";
-    } else if (loadingStage.includes("Downloading")) {
-      newTarget = "Deploying on-device privacy model\u2026";
-    } else if (loadingStage.includes("Initializing")) {
-      newTarget = "Initializing local PII scanner\u2026";
-    } else if (loadingStage) {
-      newTarget = "Preparing privacy engine\u2026";
-    } else if (privacyEnabled) {
-      newTarget = "Deploying on-device privacy model\u2026";
+    if (!privacyEnabled || modelReady) {
+      setFakeProgress(modelReady ? 100 : 0);
+      return;
     }
-    if (newTarget && newTarget !== targetText) {
-      setTargetText(newTarget);
-      // Typewriter only during loading stages — static states appear instantly
-      if (!privacyEnabled || modelReady) {
-        setTypedText(newTarget);
-      } else {
-        setTypedText("");
-      }
-    }
-  }, [loadingStage, privacyEnabled, modelReady]);
+    setFakeProgress(5);
+    const interval = setInterval(() => {
+      setFakeProgress((prev) => {
+        if (prev >= 94) return 94;
+        // Slow down as we approach 95 — fast at start, crawls near end
+        const remaining = 94 - prev;
+        const increment = Math.max(0.3, remaining * 0.04);
+        return Math.min(94, prev + increment);
+      });
+    }, 400);
+    return () => clearInterval(interval);
+  }, [privacyEnabled, modelReady]);
 
+  // Snap to 100 when ready
   useEffect(() => {
-    if (typedText.length < targetText.length) {
-      const timer = setTimeout(() => {
-        setTypedText(targetText.slice(0, typedText.length + 1));
-      }, 30);
-      return () => clearTimeout(timer);
+    if (modelReady) setFakeProgress(100);
+  }, [modelReady]);
+
+  // Rotate status messages every 4 seconds during loading
+  useEffect(() => {
+    if (!privacyEnabled || modelReady) {
+      setStatusMsg(modelReady ? "Privacy Shield active \u2014 on-device" : "Privacy Shield off");
+      return;
     }
-  }, [typedText, targetText]);
+    setStatusMsg(LOADING_MESSAGES[0]);
+    setMsgIndex(0);
+    const interval = setInterval(() => {
+      setMsgIndex((prev) => {
+        const next = (prev + 1) % LOADING_MESSAGES.length;
+        setStatusMsg(LOADING_MESSAGES[next]);
+        return next;
+      });
+    }, 4000);
+    return () => clearInterval(interval);
+  }, [privacyEnabled, modelReady]);
   const [lastDiff, setLastDiff] = useState<{
     original: string;
     anonymized: string;
@@ -576,32 +593,31 @@ export default function ChatInput() {
           <div className="flex-1 relative">
             <div className="flex items-center gap-2 mb-2" style={{ paddingLeft: "4px" }}>
             <PrivacyShield enabled={privacyEnabled} onToggle={setPrivacyEnabled} onLoadingStage={setLoadingStage} />
-            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "8px", minHeight: "16px" }}>
               <span style={{
                 fontSize: "11px",
                 color: privacyEnabled ? "rgba(255, 107, 53, 0.6)" : "rgba(255,255,255,0.2)",
                 fontFamily: "monospace",
                 letterSpacing: "0.02em",
+                transition: "opacity 0.5s ease",
               }}>
-                {typedText}
-                {privacyEnabled && !modelReady && typedText.length < targetText.length && (
-                  <span style={{ opacity: 0.6, animation: "blink 0.8s step-end infinite" }}>|</span>
-                )}
+                {statusMsg}
               </span>
-              {privacyEnabled && !modelReady && typedText.length === targetText.length && (
+              {privacyEnabled && !modelReady && (
                 <div style={{
-                  width: "48px",
+                  width: "60px",
                   height: "3px",
                   borderRadius: "2px",
                   background: "rgba(255, 255, 255, 0.06)",
                   overflow: "hidden",
+                  flexShrink: 0,
                 }}>
                   <div style={{
-                    width: loadingStage.includes("Initializing") ? "80%" : "35%",
+                    width: `${fakeProgress}%`,
                     height: "100%",
                     borderRadius: "2px",
                     background: "#ff6b35",
-                    transition: "width 2s ease",
+                    transition: "width 0.4s ease-out",
                   }} />
                 </div>
               )}
