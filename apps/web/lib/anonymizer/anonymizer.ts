@@ -202,6 +202,13 @@ export async function anonymizeDocument(
     accumulatedMapping = result.mapping;
   }
 
+  // Global sweep: replace any mapped originals the chunking missed
+  allAnonymized = globalMappingSweep(allAnonymized, accumulatedMapping);
+
+  // Final fragment catch across full document
+  const { text: swept } = catchNameFragments(allAnonymized, accumulatedMapping);
+  allAnonymized = swept;
+
   onProgress?.(100, "Anonymization complete");
 
   const finalCounts: Record<string, number> = {};
