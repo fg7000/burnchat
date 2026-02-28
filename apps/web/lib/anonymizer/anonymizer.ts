@@ -197,6 +197,8 @@ export async function anonymizeDocument(
 
   for (let i = 0; i < chunks.length; i++) {
     onProgress?.(Math.round((i / chunks.length) * 100), `Scanning part ${i + 1} of ${chunks.length}...`);
+    // Yield to browser event loop so UI stays responsive
+    await new Promise((r) => setTimeout(r, 0));
     const result = await anonymizeText(chunks[i], accumulatedMapping);
     allAnonymized += result.anonymizedText;
     accumulatedMapping = result.mapping;
