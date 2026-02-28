@@ -46,7 +46,7 @@ self.onmessage = async (e: MessageEvent) => {
       glinerInstance = instance;
       self.postMessage({ type: "progress", message: "Privacy engine ready" });
       self.postMessage({ type: "init-done" });
-      console.log("[BurnChat Worker] GLiNER small model loaded");
+      console.log("[BurnChat Worker] GLiNER PII model loaded (gliner_multi_pii-v1)");
     } catch (err: any) {
       console.error("[BurnChat Worker] GLiNER init failed:", err);
       self.postMessage({ type: "init-error", error: err?.message || String(err) });
@@ -57,15 +57,19 @@ self.onmessage = async (e: MessageEvent) => {
       return;
     }
     try {
+      const t0 = Date.now();
+      console.log(`[BurnChat Worker] Starting inference for request ${id} (${text.length} chars)`);
       const results = await glinerInstance.inference({
         texts: [text],
         entities: ENTITY_LABELS,
         threshold: 0.5,
         flatNer: true,
       });
+      const elapsed = Date.now() - t0;
       const entities = (results[0] || []).map((r: any) => ({
         text: r.spanText, start: r.start, end: r.end, label: r.label, score: r.score,
       }));
+      console.log(`[BurnChat Worker] Request ${id} done in ${elapsed}ms — found ${entities.length} entities`);
       self.postMessage({ type: "detect-result", id, entities });
     } catch (err: any) {
       self.postMessage({ type: "detect-error", id, error: err?.message || String(err) });

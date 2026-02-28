@@ -70,7 +70,7 @@ export async function detectEntities(text: string): Promise<DetectedEntity[]> {
   return new Promise<DetectedEntity[]>((resolve) => {
     pendingDetects[id] = { resolve, reject: () => resolve([]) };
     worker!.postMessage({ type: "detect", id, text });
-    setTimeout(() => { if (pendingDetects[id]) { delete pendingDetects[id]; resolve([]); } }, 30000);
+    setTimeout(() => { if (pendingDetects[id]) { console.warn("[BurnChat] Worker timeout for request", id, "after 180s"); delete pendingDetects[id]; resolve([]); } }, 180000);
   });
 }
 

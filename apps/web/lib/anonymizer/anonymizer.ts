@@ -1,4 +1,4 @@
-import { detectEntities, detectEntitiesBatch, isGlinerReady } from "./gliner-engine";
+import { detectEntities, isGlinerReady } from "./gliner-engine";
 import { detectContext, shouldKeepEntity, type ContextType } from "./context-rules";
 import { MappingEntry } from "@/store/session-store";
 
@@ -211,31 +211,29 @@ export async function anonymizeDocument(
   const CHUNK_SIZE = 4000;
   const chunks = splitTextIntoChunks(text, CHUNK_SIZE);
 
-  onProgress?.(10, "Detecting PII across document...");
-
-  // Batch ALL chunks into ONE inference call
-  let batchResults: DetectedEntity[][] = chunks.map(() => []);
-  if (isGlinerReady()) {
-    const rawBatch = await detectEntitiesBatch(chunks);
-    batchResults = rawBatch.map((chunkEntities) =>
-      chunkEntities.map((e) => ({
-        text: e.text, start: e.start, end: e.end, label: e.label, score: e.score,
-      }))
-    );
-  }
-
-  onProgress?.(60, "Replacing detected PII...");
-
   let allAnonymized = "";
   let accumulatedMapping: MappingEntry[] = [];
 
   for (let i = 0; i < chunks.length; i++) {
-    const result = processChunk(chunks[i], accumulatedMapping, batchResults[i]);
+    onProgress?.(
+      Math.round(((i + 1) / chunks.length) * 90),
+      `Scanning part ${i + 1} of ${chunks.length}...`
+    );
+
+    // Sequential calls to worker — each runs in background thread
+    let nerEntities: DetectedEntity[] = [];
+    if (isGlinerReady()) {
+      nerEntities = (await detectEntities(chunks[i])).map((e) => ({
+        text: e.text, start: e.start, end: e.end, label: e.label, score: e.score,
+      }));
+    }
+
+    const result = processChunk(chunks[i], accumulatedMapping, nerEntities);
     allAnonymized += result.anonymizedText;
     accumulatedMapping = result.mapping;
   }
 
-  onProgress?.(80, "Final sweep...");
+  onProgress?.(95, "Final sweep...");
 
   allAnonymized = globalMappingSweep(allAnonymized, accumulatedMapping);
   const { text: swept } = catchNameFragments(allAnonymized, accumulatedMapping);
