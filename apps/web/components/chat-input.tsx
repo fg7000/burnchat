@@ -82,6 +82,44 @@ export default function ChatInput() {
   const [privacyEnabled, setPrivacyEnabled] = useState(true);
   const [modelReady, setModelReady] = useState(false);
   const [loadingStage, setLoadingStage] = useState("");
+  const [typedText, setTypedText] = useState("");
+  const [targetText, setTargetText] = useState("");
+
+  // Typewriter effect for loading stages
+  useEffect(() => {
+    let newTarget = "";
+    if (!privacyEnabled) {
+      newTarget = "Privacy Shield off";
+    } else if (modelReady) {
+      newTarget = "Privacy Shield active \u2014 on-device";
+    } else if (loadingStage.includes("Downloading")) {
+      newTarget = "Deploying on-device privacy model\u2026";
+    } else if (loadingStage.includes("Initializing")) {
+      newTarget = "Initializing local PII scanner\u2026";
+    } else if (loadingStage) {
+      newTarget = "Preparing privacy engine\u2026";
+    } else if (privacyEnabled) {
+      newTarget = "Deploying on-device privacy model\u2026";
+    }
+    if (newTarget && newTarget !== targetText) {
+      setTargetText(newTarget);
+      // Typewriter only during loading stages — static states appear instantly
+      if (!privacyEnabled || modelReady) {
+        setTypedText(newTarget);
+      } else {
+        setTypedText("");
+      }
+    }
+  }, [loadingStage, privacyEnabled, modelReady]);
+
+  useEffect(() => {
+    if (typedText.length < targetText.length) {
+      const timer = setTimeout(() => {
+        setTypedText(targetText.slice(0, typedText.length + 1));
+      }, 30);
+      return () => clearTimeout(timer);
+    }
+  }, [typedText, targetText]);
   const [lastDiff, setLastDiff] = useState<{
     original: string;
     anonymized: string;
@@ -539,31 +577,31 @@ export default function ChatInput() {
             <div className="flex items-center gap-2 mb-2" style={{ paddingLeft: "4px" }}>
             <PrivacyShield enabled={privacyEnabled} onToggle={setPrivacyEnabled} onLoadingStage={setLoadingStage} />
             <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-              <span style={{ fontSize: "11px", color: privacyEnabled ? "rgba(255, 107, 53, 0.6)" : "rgba(255,255,255,0.2)" }}>
-                {privacyEnabled
-                  ? modelReady
-                    ? "Privacy Shield active"
-                    : loadingStage.includes("Downloading")
-                    ? "Downloading model"
-                    : loadingStage.includes("Initializing")
-                    ? "Initializing engine"
-                    : "Loading model"
-                  : "Privacy Shield off"}
+              <span style={{
+                fontSize: "11px",
+                color: privacyEnabled ? "rgba(255, 107, 53, 0.6)" : "rgba(255,255,255,0.2)",
+                fontFamily: "monospace",
+                letterSpacing: "0.02em",
+              }}>
+                {typedText}
+                {privacyEnabled && !modelReady && typedText.length < targetText.length && (
+                  <span style={{ opacity: 0.6, animation: "blink 0.8s step-end infinite" }}>|</span>
+                )}
               </span>
-              {privacyEnabled && !modelReady && (
+              {privacyEnabled && !modelReady && typedText.length === targetText.length && (
                 <div style={{
-                  width: "60px",
+                  width: "48px",
                   height: "3px",
                   borderRadius: "2px",
                   background: "rgba(255, 255, 255, 0.06)",
                   overflow: "hidden",
                 }}>
                   <div style={{
-                    width: loadingStage.includes("Initializing") ? "75%" : "35%",
+                    width: loadingStage.includes("Initializing") ? "80%" : "35%",
                     height: "100%",
                     borderRadius: "2px",
                     background: "#ff6b35",
-                    transition: "width 1.5s ease",
+                    transition: "width 2s ease",
                   }} />
                 </div>
               )}
