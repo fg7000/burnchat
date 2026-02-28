@@ -515,7 +515,7 @@ export default function ChatInput() {
         ) : (
           hasDocument && (
             <div className="text-xs mb-2 text-center" style={{ color: "rgba(255,255,255,0.2)", fontFamily: "'JetBrains Mono', monospace" }}>
-              Credit balance: {creditBalance}
+              Credit balance: {Number.isFinite(creditBalance) ? creditBalance : 0}
             </div>
           )
         )}

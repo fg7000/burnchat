@@ -8,7 +8,8 @@ export function CreditDisplay() {
   const creditBalance = useSessionStore((s) => s.creditBalance);
   const token = useSessionStore((s) => s.token);
   const { setShowCreditModal } = useUIStore();
-  const dollars = (creditBalance / 100).toFixed(2);
+  const safeBalance = Number.isFinite(creditBalance) ? creditBalance : 0;
+  const dollars = (safeBalance / 100).toFixed(2);
 
   const handleClick = () => {
     if (token) {

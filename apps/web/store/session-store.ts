@@ -98,13 +98,14 @@ function loadPersistedAuth() {
     const saved = localStorage.getItem("burnchat_auth");
     if (saved) {
       const { token, userId, email, creditBalance } = JSON.parse(saved);
+      const safeBalance = Number.isFinite(creditBalance) ? creditBalance : 0;
       if (token && userId) {
         return {
           token,
           userId,
           email: email || null,
-          creditBalance: creditBalance ?? 0,
-          creditsExhausted: (creditBalance ?? 0) <= 0,
+          creditBalance: safeBalance,
+          creditsExhausted: safeBalance <= 0,
         };
       }
     }
@@ -150,16 +151,16 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   },
 
   setCreditBalance: (balance) => {
-    // Update localStorage too
+    const safe = Number.isFinite(balance) ? balance : 0;
     try {
       const saved = localStorage.getItem("burnchat_auth");
       if (saved) {
         const auth = JSON.parse(saved);
-        auth.creditBalance = balance;
+        auth.creditBalance = safe;
         localStorage.setItem("burnchat_auth", JSON.stringify(auth));
       }
     } catch {}
-    set({ creditBalance: balance, creditsExhausted: balance <= 0 });
+    set({ creditBalance: safe, creditsExhausted: safe <= 0 });
   },
 
   setCreditsExhausted: (exhausted) => set({ creditsExhausted: exhausted }),
@@ -179,7 +180,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
 
   setStreamingComplete: (messageId, creditsUsed, tokenCount, newBalance) =>
     set((state) => {
-      const creditBalance = newBalance !== undefined ? newBalance : state.creditBalance - creditsUsed;
+      const creditBalance = (newBalance != null && !isNaN(newBalance)) ? newBalance : state.creditBalance - creditsUsed;
       // Update localStorage with new balance
       try {
         const saved = localStorage.getItem("burnchat_auth");
