@@ -1,12 +1,5 @@
 "use client";
 
-/**
- * GLiNER PII Engine — Web Worker wrapper
- *
- * Same API as before (initGliner, detectEntities, isGlinerReady)
- * but inference now runs in a Web Worker so the UI never freezes.
- */
-
 export type ProgressCallback = (message: string) => void;
 
 interface DetectedEntity {
@@ -22,10 +15,7 @@ let ready = false;
 let loadingPromise: Promise<void> | null = null;
 let detectIdCounter = 0;
 
-const pendingDetects = new Map
-  number,
-  { resolve: (entities: DetectedEntity[]) => void; reject: (err: Error) => void }
->();
+const pendingDetects: Record<number, { resolve: (entities: DetectedEntity[]) => void; reject: (err: Error) => void }> = {};
 
 let initProgressCallback: ProgressCallback | null = null;
 let initResolve: (() => void) | null = null;
@@ -33,85 +23,52 @@ let initReject: ((err: Error) => void) | null = null;
 
 function handleWorkerMessage(e: MessageEvent) {
   const { type, id, entities, error, message } = e.data;
-
   if (type === "progress") {
     initProgressCallback?.(message);
   } else if (type === "init-done") {
     ready = true;
-    console.log("[BurnChat] GLiNER PII model loaded \u2014 running in background thread");
+    console.log("[BurnChat] GLiNER PII model loaded");
     initResolve?.();
   } else if (type === "init-error") {
-    console.error("[BurnChat] GLiNER worker init failed:", error);
     loadingPromise = null;
     initReject?.(new Error(error));
   } else if (type === "detect-result") {
-    const pending = pendingDetects.get(id);
-    if (pending) {
-      pending.resolve(entities);
-      pendingDetects.delete(id);
-    }
+    const pending = pendingDetects[id];
+    if (pending) { pending.resolve(entities); delete pendingDetects[id]; }
   } else if (type === "detect-error") {
-    const pending = pendingDetects.get(id);
-    if (pending) {
-      pending.reject(new Error(error));
-      pendingDetects.delete(id);
-    }
+    const pending = pendingDetects[id];
+    if (pending) { pending.reject(new Error(error)); delete pendingDetects[id]; }
   }
 }
 
 export async function initGliner(onProgress?: ProgressCallback): Promise<void> {
   if (ready) return;
   if (loadingPromise) return loadingPromise;
-
   loadingPromise = new Promise<void>((resolve, reject) => {
     initProgressCallback = onProgress || null;
     initResolve = resolve;
     initReject = reject;
-
     try {
       worker = new Worker(new URL("./gliner-worker.ts", import.meta.url));
       worker.onmessage = handleWorkerMessage;
-      worker.onerror = (err) => {
-        console.error("[BurnChat] Worker error:", err);
-        loadingPromise = null;
-        reject(new Error("Worker failed to load"));
-      };
+      worker.onerror = (err) => { loadingPromise = null; reject(new Error("Worker failed")); };
       worker.postMessage({ type: "init" });
-    } catch (err) {
-      console.error("[BurnChat] Failed to create worker:", err);
-      loadingPromise = null;
-      reject(err);
-    }
+    } catch (err) { loadingPromise = null; reject(err); }
   });
-
   return loadingPromise;
 }
 
 export async function detectEntities(text: string): Promise<DetectedEntity[]> {
-  if (!worker || !ready) return [];
-
   const id = ++detectIdCounter;
-
   return new Promise<DetectedEntity[]>((resolve) => {
-    pendingDetects.set(id, {
+    pendingDetects[id] = {
       resolve,
-      reject: (err) => {
-        console.error("[BurnChat] Detect error:", err);
-        resolve([]);
-      },
-    });
-    worker!.postMessage({ type: "detect", id, text });
-
+      reject: () => { resolve([]); },
+    };
     setTimeout(() => {
-      if (pendingDetects.has(id)) {
-        console.warn("[BurnChat] Worker timeout for request", id);
-        pendingDetects.delete(id);
-        resolve([]);
-      }
+      if (pendingDetects[id]) { delete pendingDetects[id]; resolve([]); }
     }, 30000);
   });
 }
 
-export function isGlinerReady(): boolean {
-  return ready;
-}
+export function isGlinerReady(): boolean { return ready; }
