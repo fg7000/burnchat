@@ -25,7 +25,7 @@ const ENTITY_LABELS = [
 let glinerInstance: any = null;
 
 self.onmessage = async (e: MessageEvent) => {
-  const { type, id, text } = e.data;
+  const { type, id, text, texts } = e.data;
 
   if (type === "init") {
     try {
@@ -56,15 +56,32 @@ self.onmessage = async (e: MessageEvent) => {
         flatNer: true,
       });
       const entities = (results[0] || []).map((r: any) => ({
-        text: r.spanText,
-        start: r.start,
-        end: r.end,
-        label: r.label,
-        score: r.score,
+        text: r.spanText, start: r.start, end: r.end, label: r.label, score: r.score,
       }));
       self.postMessage({ type: "detect-result", id, entities });
     } catch (err: any) {
       self.postMessage({ type: "detect-error", id, error: err?.message || String(err) });
+    }
+  } else if (type === "detect-batch") {
+    if (!glinerInstance) {
+      self.postMessage({ type: "detect-batch-result", id, batchEntities: texts.map(() => []) });
+      return;
+    }
+    try {
+      const results = await glinerInstance.inference({
+        texts: texts,
+        entities: ENTITY_LABELS,
+        threshold: 0.6,
+        flatNer: true,
+      });
+      const batchEntities = results.map((chunkResults: any[]) =>
+        (chunkResults || []).map((r: any) => ({
+          text: r.spanText, start: r.start, end: r.end, label: r.label, score: r.score,
+        }))
+      );
+      self.postMessage({ type: "detect-batch-result", id, batchEntities });
+    } catch (err: any) {
+      self.postMessage({ type: "detect-batch-error", id, error: err?.message || String(err) });
     }
   }
 };

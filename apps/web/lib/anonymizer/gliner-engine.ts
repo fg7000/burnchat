@@ -15,29 +15,35 @@ let ready = false;
 let loadingPromise: Promise<void> | null = null;
 let detectIdCounter = 0;
 
-const pendingDetects: Record<number, { resolve: (entities: DetectedEntity[]) => void; reject: (err: Error) => void }> = {};
+const pendingDetects: Record<number, { resolve: (v: any) => void; reject: (err: Error) => void }> = {};
 
 let initProgressCallback: ProgressCallback | null = null;
 let initResolve: (() => void) | null = null;
 let initReject: ((err: Error) => void) | null = null;
 
 function handleWorkerMessage(e: MessageEvent) {
-  const { type, id, entities, error, message } = e.data;
+  const { type, id, entities, batchEntities, error, message } = e.data;
   if (type === "progress") {
     initProgressCallback?.(message);
   } else if (type === "init-done") {
     ready = true;
-    console.log("[BurnChat] GLiNER PII model loaded");
+    console.log("[BurnChat] Privacy engine ready");
     initResolve?.();
   } else if (type === "init-error") {
     loadingPromise = null;
     initReject?.(new Error(error));
   } else if (type === "detect-result") {
-    const pending = pendingDetects[id];
-    if (pending) { pending.resolve(entities); delete pendingDetects[id]; }
+    const p = pendingDetects[id];
+    if (p) { p.resolve(entities); delete pendingDetects[id]; }
   } else if (type === "detect-error") {
-    const pending = pendingDetects[id];
-    if (pending) { pending.reject(new Error(error)); delete pendingDetects[id]; }
+    const p = pendingDetects[id];
+    if (p) { p.reject(new Error(error)); delete pendingDetects[id]; }
+  } else if (type === "detect-batch-result") {
+    const p = pendingDetects[id];
+    if (p) { p.resolve(batchEntities); delete pendingDetects[id]; }
+  } else if (type === "detect-batch-error") {
+    const p = pendingDetects[id];
+    if (p) { p.reject(new Error(error)); delete pendingDetects[id]; }
   }
 }
 
@@ -51,7 +57,7 @@ export async function initGliner(onProgress?: ProgressCallback): Promise<void> {
     try {
       worker = new Worker(new URL("./gliner-worker.ts", import.meta.url));
       worker.onmessage = handleWorkerMessage;
-      worker.onerror = (err) => { loadingPromise = null; reject(new Error("Worker failed")); };
+      worker.onerror = () => { loadingPromise = null; reject(new Error("Worker failed")); };
       worker.postMessage({ type: "init" });
     } catch (err) { loadingPromise = null; reject(err); }
   });
@@ -61,13 +67,16 @@ export async function initGliner(onProgress?: ProgressCallback): Promise<void> {
 export async function detectEntities(text: string): Promise<DetectedEntity[]> {
   const id = ++detectIdCounter;
   return new Promise<DetectedEntity[]>((resolve) => {
-    pendingDetects[id] = {
-      resolve,
-      reject: () => { resolve([]); },
-    };
-    setTimeout(() => {
-      if (pendingDetects[id]) { delete pendingDetects[id]; resolve([]); }
-    }, 30000);
+    pendingDetects[id] = { resolve, reject: () => resolve([]) };
+    setTimeout(() => { if (pendingDetects[id]) { delete pendingDetects[id]; resolve([]); } }, 30000);
+  });
+}
+
+export async function detectEntitiesBatch(texts: string[]): Promise<DetectedEntity[][]> {
+  const id = ++detectIdCounter;
+  return new Promise<DetectedEntity[][]>((resolve) => {
+    pendingDetects[id] = { resolve, reject: () => resolve(texts.map(() => [])) };
+    setTimeout(() => { if (pendingDetects[id]) { delete pendingDetects[id]; resolve(texts.map(() => [])); } }, 60000);
   });
 }
 

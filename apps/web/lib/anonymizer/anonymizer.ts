@@ -1,4 +1,4 @@
-import { detectEntities, isGlinerReady } from "./gliner-engine";
+import { detectEntities, detectEntitiesBatch, isGlinerReady } from "./gliner-engine";
 import { detectContext, shouldKeepEntity, type ContextType } from "./context-rules";
 import { MappingEntry } from "@/store/session-store";
 
@@ -197,15 +197,27 @@ export async function anonymizeDocument(
   const CHUNK_SIZE = 4000;
   const chunks = splitTextIntoChunks(text, CHUNK_SIZE);
 
+  onProgress?.(10, "Detecting PII across document...");
+
+  // Batch all chunks into ONE inference call (much faster than sequential)
+  let batchResults: Array<Array<{ text: string; start: number; end: number; label: string; score: number }>> = [];
+  if (isGlinerReady()) {
+    batchResults = await detectEntitiesBatch(chunks);
+  }
+
+  onProgress?.(60, "Replacing detected PII...");
+
   let allAnonymized = "";
   let accumulatedMapping: MappingEntry[] = [];
 
   for (let i = 0; i < chunks.length; i++) {
-    onProgress?.(Math.round((i / chunks.length) * 100), `Scanning part ${i + 1} of ${chunks.length}...`);
-    const result = await anonymizeText(chunks[i], accumulatedMapping);
+    // Run anonymizeText but inject pre-computed NER results
+    const result = await anonymizeTextWithEntities(chunks[i], accumulatedMapping, batchResults[i] || []);
     allAnonymized += result.anonymizedText;
     accumulatedMapping = result.mapping;
   }
+
+  onProgress?.(80, "Final sweep...");
 
   allAnonymized = globalMappingSweep(allAnonymized, accumulatedMapping);
   const { text: swept } = catchNameFragments(allAnonymized, accumulatedMapping);
@@ -222,6 +234,68 @@ export async function anonymizeDocument(
     anonymized_text: allAnonymized,
     mapping: accumulatedMapping,
     entities_found: Object.entries(finalCounts).map(([type, count]) => ({ type, count })),
+  };
+}
+
+/**
+ * Like anonymizeText but uses pre-computed NER entities (from batch detection).
+ * Regex still runs fresh on each chunk. This avoids repeated model calls.
+ */
+async function anonymizeTextWithEntities(
+  text: string,
+  existingMapping: MappingEntry[],
+  precomputedEntities: Array<{ text: string; start: number; end: number; label: string; score: number }>,
+): Promise<{ anonymizedText: string; mapping: MappingEntry[]; entitiesFound: number }> {
+  const detectedContext = detectContext(text);
+  const allEntities: DetectedEntity[] = [];
+
+  // 1. Regex patterns (always run fresh)
+  for (const { pattern, label } of PII_REGEX) {
+    const regex = new RegExp(pattern.source, pattern.flags);
+    let match;
+    while ((match = regex.exec(text)) !== null) {
+      allEntities.push({ text: match[0], start: match.index, end: match.index + match[0].length, label });
+    }
+  }
+
+  // 2. Use pre-computed NER entities (no model call needed)
+  for (const e of precomputedEntities) {
+    allEntities.push({ text: e.text, start: e.start, end: e.end, label: e.label, score: e.score });
+  }
+
+  const filtered = allEntities.filter((e) => isLikelyRealEntity(e));
+  if (filtered.length === 0) {
+    return { anonymizedText: text, mapping: existingMapping, entitiesFound: 0 };
+  }
+
+  const unique = deduplicateSpans(filtered);
+  const contextFiltered = unique.filter((e) => {
+    const normalized = normalizeLabel(e.label);
+  });
+
+  if (contextFiltered.length === 0) {
+    return { anonymizedText: text, mapping: existingMapping, entitiesFound: 0 };
+  }
+
+  contextFiltered.sort((a, b) => b.start - a.start);
+
+  const newMapping: MappingEntry[] = [...existingMapping];
+  let result = text;
+
+  for (const entity of contextFiltered) {
+    const normalized = normalizeLabel(entity.label);
+    const placeholder = resolvePlaceholder(entity.text, normalized, newMapping);
+      newMapping.push({ original: entity.text, replacement: placeholder, entity_type: normalized });
+    }
+    result = result.slice(0, entity.start) + placeholder + result.slice(entity.end);
+  }
+
+  const { text: finalResult, extraCount } = catchNameFragments(result, newMapping);
+
+  return {
+    anonymizedText: finalResult,
+    mapping: newMapping,
+    entitiesFound: contextFiltered.length + extraCount,
   };
 }
 
