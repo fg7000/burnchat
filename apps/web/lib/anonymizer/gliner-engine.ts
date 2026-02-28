@@ -22,12 +22,12 @@ let initResolve: (() => void) | null = null;
 let initReject: ((err: Error) => void) | null = null;
 
 function handleWorkerMessage(e: MessageEvent) {
-  const { type, id, entities, batchEntities, error, message } = e.data;
+  const { type, id, entities, error, message } = e.data;
   if (type === "progress") {
     initProgressCallback?.(message);
   } else if (type === "init-done") {
     ready = true;
-    console.log("[BurnChat] Privacy engine ready");
+    console.log("[BurnChat] Privacy engine ready (bert-small-pii)");
     initResolve?.();
   } else if (type === "init-error") {
     loadingPromise = null;
@@ -36,12 +36,6 @@ function handleWorkerMessage(e: MessageEvent) {
     const p = pendingDetects[id];
     if (p) { p.resolve(entities); delete pendingDetects[id]; }
   } else if (type === "detect-error") {
-    const p = pendingDetects[id];
-    if (p) { p.resolve([]); delete pendingDetects[id]; }
-  } else if (type === "detect-batch-result") {
-    const p = pendingDetects[id];
-    if (p) { p.resolve(batchEntities); delete pendingDetects[id]; }
-  } else if (type === "detect-batch-error") {
     const p = pendingDetects[id];
     if (p) { p.resolve([]); delete pendingDetects[id]; }
   }
@@ -70,17 +64,14 @@ export async function detectEntities(text: string): Promise<DetectedEntity[]> {
   return new Promise<DetectedEntity[]>((resolve) => {
     pendingDetects[id] = { resolve, reject: () => resolve([]) };
     worker!.postMessage({ type: "detect", id, text });
-    setTimeout(() => { if (pendingDetects[id]) { console.warn("[BurnChat] Worker timeout for request", id, "after 180s"); delete pendingDetects[id]; resolve([]); } }, 180000);
-  });
-}
-
-export async function detectEntitiesBatch(texts: string[]): Promise<DetectedEntity[][]> {
-  if (!worker || !ready) return texts.map(() => []);
-  const id = ++detectIdCounter;
-  return new Promise<DetectedEntity[][]>((resolve) => {
-    pendingDetects[id] = { resolve, reject: () => resolve(texts.map(() => [])) };
-    worker!.postMessage({ type: "detect-batch", id, texts });
-    setTimeout(() => { if (pendingDetects[id]) { delete pendingDetects[id]; resolve(texts.map(() => [])); } }, 60000);
+    // 60s timeout — bert-small should finish in <2s per chunk, but be generous
+    setTimeout(() => {
+      if (pendingDetects[id]) {
+        console.warn("[BurnChat] Worker timeout for request", id);
+        delete pendingDetects[id];
+        resolve([]);
+      }
+    }, 60000);
   });
 }
 

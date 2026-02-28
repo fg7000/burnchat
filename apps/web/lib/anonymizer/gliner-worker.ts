@@ -1,99 +1,116 @@
 /**
- * GLiNER Web Worker — runs PII detection off the main thread.
- * Uses the SMALL model for speed. Server-side Presidio is the safety net.
+ * PII Detection Web Worker — runs NER off the main thread.
+ * Uses gravitee-io/bert-small-pii-detection (~28MB INT8) via Transformers.js.
+ * 10-20x faster than the previous gliner_multi_pii-v1 (650MB).
  */
 
-const MODEL_CONFIG = {
-  tokenizerPath: "onnx-community/gliner_multi_pii-v1",
-  onnxSettings: {
-    modelPath: "https://huggingface.co/onnx-community/gliner_multi_pii-v1/resolve/main/onnx/model.onnx",
-    executionProvider: "cpu" as const,
-  },
-  transformersSettings: {
-    useBrowserCache: true,
-  },
-};
-
-const ENTITY_LABELS = [
-  "person",
-  "email",
-  "phone number",
-  "address",
-  "social security number",
-  "date of birth",
-  "credit card number",
-  "bank account number",
-  "passport number",
-  "driver's license number",
-  "medical record number",
-  "ip address",
-  "username",
-];
-
-let glinerInstance: any = null;
+let classifier: any = null;
 
 self.onmessage = async (e: MessageEvent) => {
-  const { type, id, text, texts } = e.data;
+  const { type, id, text } = e.data;
 
   if (type === "init") {
     try {
       self.postMessage({ type: "progress", message: "Downloading privacy model..." });
-      const glinerModule = await import("gliner");
-      const GlinerClass = glinerModule.default || glinerModule.Gliner || glinerModule.GLiNER || glinerModule;
-      const instance = new (GlinerClass as any)(MODEL_CONFIG);
+
+      const { pipeline, env } = await import("@huggingface/transformers");
+
+      // Configure for browser worker
+      env.allowLocalModels = false;
+
       self.postMessage({ type: "progress", message: "Initializing privacy engine..." });
-      await instance.initialize();
-      glinerInstance = instance;
+
+      // Load the tiny PII model — 28MB quantized vs 650MB before
+      classifier = await pipeline(
+        "token-classification",
+        "gravitee-io/bert-small-pii-detection",
+        {
+          dtype: "q8",       // INT8 quantized
+          device: "wasm",    // CPU via WebAssembly
+        }
+      );
+
       self.postMessage({ type: "progress", message: "Privacy engine ready" });
       self.postMessage({ type: "init-done" });
-      console.log("[BurnChat Worker] GLiNER PII model loaded (gliner_multi_pii-v1)");
+      console.log("[BurnChat Worker] bert-small-pii-detection loaded (INT8, ~28MB)");
     } catch (err: any) {
-      console.error("[BurnChat Worker] GLiNER init failed:", err);
+      console.error("[BurnChat Worker] PII model init failed:", err);
       self.postMessage({ type: "init-error", error: err?.message || String(err) });
     }
   } else if (type === "detect") {
-    if (!glinerInstance) {
+    if (!classifier) {
       self.postMessage({ type: "detect-result", id, entities: [] });
       return;
     }
     try {
       const t0 = Date.now();
-      console.log(`[BurnChat Worker] Starting inference for request ${id} (${text.length} chars)`);
-      const results = await glinerInstance.inference({
-        texts: [text],
-        entities: ENTITY_LABELS,
-        threshold: 0.5,
-        flatNer: true,
+
+      // Transformers.js token-classification with aggregation
+      const results = await classifier(text, {
+        aggregation_strategy: "simple",
       });
+
       const elapsed = Date.now() - t0;
-      const entities = (results[0] || []).map((r: any) => ({
-        text: r.spanText, start: r.start, end: r.end, label: r.label, score: r.score,
-      }));
-      console.log(`[BurnChat Worker] Request ${id} done in ${elapsed}ms — found ${entities.length} entities`);
+
+      // Map Transformers.js output → our entity format
+      // Output: { entity_group, score, word, start, end }
+      const entities = (results || [])
+        .filter((r: any) => r.score >= 0.4)
+        .map((r: any) => ({
+          text: r.word || text.slice(r.start, r.end),
+          start: r.start,
+          end: r.end,
+          label: mapLabel(r.entity_group || r.entity || ""),
+          score: r.score,
+        }));
+
+      console.log(`[BurnChat Worker] #${id}: ${elapsed}ms, ${entities.length} entities found`);
       self.postMessage({ type: "detect-result", id, entities });
     } catch (err: any) {
+      console.error(`[BurnChat Worker] Inference error:`, err);
       self.postMessage({ type: "detect-error", id, error: err?.message || String(err) });
-    }
-  } else if (type === "detect-batch") {
-    if (!glinerInstance) {
-      self.postMessage({ type: "detect-batch-result", id, batchEntities: texts.map(() => []) });
-      return;
-    }
-    try {
-      const results = await glinerInstance.inference({
-        texts: texts,
-        entities: ENTITY_LABELS,
-        threshold: 0.5,
-        flatNer: true,
-      });
-      const batchEntities = results.map((chunkResults: any[]) =>
-        (chunkResults || []).map((r: any) => ({
-          text: r.spanText, start: r.start, end: r.end, label: r.label, score: r.score,
-        }))
-      );
-      self.postMessage({ type: "detect-batch-result", id, batchEntities });
-    } catch (err: any) {
-      self.postMessage({ type: "detect-batch-error", id, error: err?.message || String(err) });
     }
   }
 };
+
+/**
+ * Map gravitee-io label names to our internal labels.
+ * Model outputs: PERSON, LOCATION, ORGANIZATION, EMAIL_ADDRESS,
+ * PHONE_NUMBER, US_SSN, CREDIT_CARD, IP_ADDRESS, DATE_TIME, URL, etc.
+ */
+function mapLabel(label: string): string {
+  const clean = label.replace(/^[BI]-/, "").toUpperCase().replace(/\s+/g, "_");
+  const map: Record<string, string> = {
+    PERSON: "person",
+    LOCATION: "address",
+    LOCATION_ADDRESS: "address",
+    LOCATION_CITY: "city",
+    LOCATION_STATE: "state",
+    LOCATION_ZIP: "zip",
+    LOCATION_STREET: "street",
+    ORGANIZATION: "organization",
+    EMAIL_ADDRESS: "email",
+    PHONE_NUMBER: "phone number",
+    US_SSN: "social security number",
+    CREDIT_CARD: "credit card number",
+    IP_ADDRESS: "ip address",
+    DATE_TIME: "date of birth",
+    URL: "url",
+    US_PASSPORT: "passport number",
+    US_DRIVER_LICENSE: "driver's license number",
+    US_BANK_NUMBER: "bank account number",
+    IBAN_CODE: "bank account number",
+    NRP: "organization",
+    AGE: "age",
+    TITLE: "title",
+    PASSWORD: "password",
+    USERNAME: "username",
+    FINANCIAL: "financial",
+    MAC_ADDRESS: "ip address",
+    IMEI: "device id",
+    US_ITIN: "social security number",
+    US_LICENSE_PLATE: "license plate",
+    COORDINATE: "coordinate",
+  };
+  return map[clean] || clean.toLowerCase();
+}
