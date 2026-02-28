@@ -81,6 +81,7 @@ export default function ChatInput() {
   const [text, setText] = useState("");
   const [privacyEnabled, setPrivacyEnabled] = useState(true);
   const [modelReady, setModelReady] = useState(false);
+  const [loadingStage, setLoadingStage] = useState("");
   const [lastDiff, setLastDiff] = useState<{
     original: string;
     anonymized: string;
@@ -515,7 +516,7 @@ export default function ChatInput() {
         ) : (
           hasDocument && (
             <div className="text-xs mb-2 text-center" style={{ color: "rgba(255,255,255,0.2)", fontFamily: "'JetBrains Mono', monospace" }}>
-              Credit balance: {creditBalance}
+              Credit balance: {Number.isFinite(creditBalance) ? creditBalance : 0}
             </div>
           )
         )}
@@ -536,10 +537,37 @@ export default function ChatInput() {
           {/* Textarea */}
           <div className="flex-1 relative">
             <div className="flex items-center gap-2 mb-2" style={{ paddingLeft: "4px" }}>
-            <PrivacyShield enabled={privacyEnabled} onToggle={setPrivacyEnabled} />
-            <span style={{ fontSize: "11px", color: privacyEnabled ? "rgba(255, 107, 53, 0.6)" : "rgba(255,255,255,0.2)" }}>
-              {privacyEnabled ? (modelReady ? "Privacy Shield active" : "Privacy Shield (loading model…)") : "Privacy Shield off"}
-            </span>
+            <PrivacyShield enabled={privacyEnabled} onToggle={setPrivacyEnabled} onLoadingStage={setLoadingStage} />
+            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <span style={{ fontSize: "11px", color: privacyEnabled ? "rgba(255, 107, 53, 0.6)" : "rgba(255,255,255,0.2)" }}>
+                {privacyEnabled
+                  ? modelReady
+                    ? "Privacy Shield active"
+                    : loadingStage.includes("Downloading")
+                    ? "Downloading model"
+                    : loadingStage.includes("Initializing")
+                    ? "Initializing engine"
+                    : "Loading model"
+                  : "Privacy Shield off"}
+              </span>
+              {privacyEnabled && !modelReady && (
+                <div style={{
+                  width: "60px",
+                  height: "3px",
+                  borderRadius: "2px",
+                  background: "rgba(255, 255, 255, 0.06)",
+                  overflow: "hidden",
+                }}>
+                  <div style={{
+                    width: loadingStage.includes("Initializing") ? "75%" : "35%",
+                    height: "100%",
+                    borderRadius: "2px",
+                    background: "#ff6b35",
+                    transition: "width 1.5s ease",
+                  }} />
+                </div>
+              )}
+            </div>
           </div>
           <textarea
               ref={textareaRef}
