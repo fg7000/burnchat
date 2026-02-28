@@ -38,7 +38,7 @@ function handleWorkerMessage(e: MessageEvent) {
     initProgressCallback?.(message);
   } else if (type === "init-done") {
     ready = true;
-    console.log("[BurnChat] GLiNER PII model loaded — running in background thread");
+    console.log("[BurnChat] GLiNER PII model loaded \u2014 running in background thread");
     initResolve?.();
   } else if (type === "init-error") {
     console.error("[BurnChat] GLiNER worker init failed:", error);
