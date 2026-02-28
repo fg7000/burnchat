@@ -13,7 +13,19 @@ function safeFetch(input: string | Request, init?: RequestInit): Promise<Respons
   } else if (input instanceof Request && /^https?:\/\/localhost:\d+/.test(input.url)) {
     input = new Request(input.url.replace(/^https?:\/\/localhost:\d+/, ""), input);
   }
-  return fetch(input, init);
+  return fetch(input, init).then((res) => {
+    if (res.status === 401 && typeof window !== "undefined") {
+      try {
+        const auth = localStorage.getItem("burnchat_auth");
+        if (auth) {
+          localStorage.removeItem("burnchat_auth");
+          console.warn("[BurnChat] Token expired, clearing session");
+          window.location.reload();
+        }
+      } catch {}
+    }
+    return res;
+  });
 }
 
 class ApiClient {

@@ -101,15 +101,8 @@ export default function CreditPurchaseModal() {
     try {
       const result = await apiClient.purchaseCredits(selectedPackage, token);
       if (result.checkout_url) {
-        if (isExhausted) {
-          // Open in new tab to preserve session state
-          window.open(result.checkout_url, "_blank");
-          setAwaitingPayment(true);
-          startPolling();
-        } else {
-          // Normal flow: redirect in same tab
-          await redirectToCheckout(result.checkout_url);
-        }
+        // Always redirect — window.open gets blocked as popup after await
+        window.location.href = result.checkout_url;
       } else {
         setError("Failed to create checkout session. Please try again.");
       }
