@@ -198,7 +198,7 @@ export default function CreditPurchaseModal() {
             "text-2xl font-semibold",
             isExhausted ? "text-amber-300" : "text-gray-100"
           )}>
-            {formatCredits(Math.max(0, creditBalance))}{" "}
+            {formatCredits(Math.max(0, Number.isFinite(creditBalance) ? creditBalance : 0))}{" "}
             <span className="text-sm font-normal text-gray-500">credits</span>
           </p>
         </div>

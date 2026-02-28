@@ -94,7 +94,7 @@ export default function Home() {
     const payment = params.get("payment");
     if (payment === "success" && token) {
       apiClient.getCreditBalance(token).then((data) => {
-        setCreditBalance(data.credit_balance);
+        if (Number.isFinite(data.credit_balance)) setCreditBalance(data.credit_balance);
         // Close the credit modal if it was open (e.g. from exhaustion)
         setShowCreditModal(false);
       }).catch(() => {});
@@ -110,7 +110,7 @@ export default function Home() {
   useEffect(() => {
     if (!token) return;
     apiClient.getMe(token).then((user) => {
-      setCreditBalance(user.credit_balance);
+      if (Number.isFinite(user.credit_balance)) setCreditBalance(user.credit_balance);
     }).catch(() => {});
   }, [token, setCreditBalance]);
   useEffect(() => {
