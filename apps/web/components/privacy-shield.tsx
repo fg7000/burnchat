@@ -9,24 +9,46 @@ interface PrivacyShieldProps {
   onToggle: (enabled: boolean) => void;
 }
 
+const STAGE_MAP: Record<string, number> = {
+  "Downloading privacy model...": 20,
+  "Initializing privacy engine...": 70,
+  "Privacy engine ready ✓": 100,
+};
+
 export default function PrivacyShield({ enabled, onToggle }: PrivacyShieldProps) {
   const [modelStatus, setModelStatus] = useState<"idle" | "loading" | "ready" | "error">(
     isGlinerReady() ? "ready" : "idle"
   );
   const [statusMessage, setStatusMessage] = useState("");
+  const [progress, setProgress] = useState(0);
 
-  // Load model when privacy is first enabled
   useEffect(() => {
     if (enabled && modelStatus === "idle") {
       setModelStatus("loading");
-      initGliner((msg) => setStatusMessage(msg))
-        .then(() => setModelStatus("ready"))
+      setProgress(5);
+      initGliner((msg) => {
+        setStatusMessage(msg);
+        setProgress(STAGE_MAP[msg] || progress);
+      })
+        .then(() => { setModelStatus("ready"); setProgress(100); })
         .catch(() => setModelStatus("error"));
     }
   }, [enabled, modelStatus]);
 
+  // Animate progress slowly while downloading (the longest phase)
+  useEffect(() => {
+    if (modelStatus !== "loading" || progress >= 65) return;
+    const timer = setInterval(() => {
+      setProgress((p) => {
+        // Creep up slowly to 60 max during download phase
+        if (p < 60) return p + 0.5;
+        return p;
+      });
+    }, 500);
+    return () => clearInterval(timer);
+  }, [modelStatus, progress]);
+
   const handleClick = useCallback(() => {
-    onToggle(!enabled);
   }, [enabled, onToggle]);
 
   const isLoading = modelStatus === "loading";
@@ -49,9 +71,7 @@ export default function PrivacyShield({ enabled, onToggle }: PrivacyShieldProps)
         style={{
           width: "36px",
           height: "36px",
-          background: enabled
-            ? "rgba(255, 107, 53, 0.1)"
-            : "transparent",
+          background: enabled ? "rgba(255, 107, 53, 0.1)" : "transparent",
           border: enabled
             ? "1px solid rgba(255, 107, 53, 0.3)"
             : "1px solid rgba(255, 255, 255, 0.08)",
@@ -88,6 +108,52 @@ export default function PrivacyShield({ enabled, onToggle }: PrivacyShieldProps)
                 : "#666",
           }}
         />
+      )}
+
+      {/* Loading progress bar */}
+      {isLoading && (
+        <div
+          style={{
+            position: "absolute",
+            bottom: "-10px",
+            left: "0",
+            right: "0",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: "2px",
+          }}
+        >
+          <div
+            style={{
+              width: "36px",
+              height: "2px",
+              borderRadius: "1px",
+              background: "rgba(255, 255, 255, 0.1)",
+              overflow: "hidden",
+            }}
+          >
+            <div
+              style={{
+                width: Math.round(progress) + "%",
+                height: "100%",
+                background: "#ff6b35",
+                borderRadius: "1px",
+                transition: "width 0.5s ease",
+              }}
+            />
+          </div>
+          <span
+            style={{
+              fontSize: "9px",
+              color: "rgba(255, 255, 255, 0.35)",
+              fontFamily: "'JetBrains Mono', monospace",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {Math.round(progress)}%
+          </span>
+        </div>
       )}
     </div>
   );
