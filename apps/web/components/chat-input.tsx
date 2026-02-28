@@ -515,7 +515,7 @@ export default function ChatInput() {
         ) : (
           hasDocument && (
             <div className="text-xs mb-2 text-center" style={{ color: "rgba(255,255,255,0.2)", fontFamily: "'JetBrains Mono', monospace" }}>
-              Credit balance: {Number.isFinite(creditBalance) ? creditBalance : 0}
+              Credit balance: {creditBalance}
             </div>
           )
         )}
@@ -538,7 +538,7 @@ export default function ChatInput() {
             <div className="flex items-center gap-2 mb-2" style={{ paddingLeft: "4px" }}>
             <PrivacyShield enabled={privacyEnabled} onToggle={setPrivacyEnabled} />
             <span style={{ fontSize: "11px", color: privacyEnabled ? "rgba(255, 107, 53, 0.6)" : "rgba(255,255,255,0.2)" }}>
-              {privacyEnabled ? (modelReady ? "Privacy Shield active" : "Privacy Shield loading…") : "Privacy Shield off"}
+              {privacyEnabled ? (modelReady ? "Privacy Shield active" : "Privacy Shield (loading model…)") : "Privacy Shield off"}
             </span>
           </div>
           <textarea

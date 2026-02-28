@@ -7,24 +7,27 @@ import { initGliner, isGlinerReady } from "@/lib/anonymizer/gliner-engine";
 interface PrivacyShieldProps {
   enabled: boolean;
   onToggle: (enabled: boolean) => void;
+  onLoadingStage?: (stage: string) => void;
 }
 
-export default function PrivacyShield({ enabled, onToggle }: PrivacyShieldProps) {
+export default function PrivacyShield({ enabled, onToggle, onLoadingStage }: PrivacyShieldProps) {
   const [modelStatus, setModelStatus] = useState<"idle" | "loading" | "ready" | "error">(
     isGlinerReady() ? "ready" : "idle"
   );
   const [statusMessage, setStatusMessage] = useState("");
 
+  // Load model when privacy is first enabled
   useEffect(() => {
     if (enabled && modelStatus === "idle") {
       setModelStatus("loading");
-      initGliner((msg) => setStatusMessage(msg))
-        .then(() => setModelStatus("ready"))
+      initGliner((msg) => { setStatusMessage(msg); onLoadingStage?.(msg); })
+        .then(() => { setModelStatus("ready"); onLoadingStage?.("ready"); })
         .catch(() => setModelStatus("error"));
     }
   }, [enabled, modelStatus]);
 
   const handleClick = useCallback(() => {
+    onToggle(!enabled);
   }, [enabled, onToggle]);
 
   const isLoading = modelStatus === "loading";
@@ -47,7 +50,9 @@ export default function PrivacyShield({ enabled, onToggle }: PrivacyShieldProps)
         style={{
           width: "36px",
           height: "36px",
-          background: enabled ? "rgba(255, 107, 53, 0.1)" : "transparent",
+          background: enabled
+            ? "rgba(255, 107, 53, 0.1)"
+            : "transparent",
           border: enabled
             ? "1px solid rgba(255, 107, 53, 0.3)"
             : "1px solid rgba(255, 255, 255, 0.08)",
@@ -64,6 +69,7 @@ export default function PrivacyShield({ enabled, onToggle }: PrivacyShieldProps)
         )}
       </button>
 
+      {/* Model status dot */}
       {enabled && (
         <div
           style={{
