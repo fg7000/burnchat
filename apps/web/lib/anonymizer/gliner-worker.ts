@@ -1,12 +1,12 @@
 /**
  * GLiNER Web Worker — runs PII detection off the main thread.
- * Uses the SMALL model for speed. Server-side Presidio is the safety net.
+ * Uses PII-specific model. Batch inference for documents.
  */
 
 const MODEL_CONFIG = {
-  tokenizerPath: "onnx-community/gliner_small-v2",
+  tokenizerPath: "onnx-community/gliner_multi_pii-v1",
   onnxSettings: {
-    modelPath: "https://huggingface.co/onnx-community/gliner_small-v2/resolve/main/onnx/model.onnx",
+    modelPath: "https://huggingface.co/onnx-community/gliner_multi_pii-v1/resolve/main/onnx/model.onnx",
     executionProvider: "cpu" as const,
   },
   transformersSettings: {
@@ -15,11 +15,10 @@ const MODEL_CONFIG = {
 };
 
 const ENTITY_LABELS = [
-  "person",
-  "location",
-  "organization",
-  "date of birth",
-  "address",
+  "person", "email", "phone number", "address",
+  "social security number", "date of birth", "credit card number",
+  "bank account number", "passport number", "driver's license number",
+  "medical record number", "ip address", "username",
 ];
 
 let glinerInstance: any = null;
@@ -38,7 +37,7 @@ self.onmessage = async (e: MessageEvent) => {
       glinerInstance = instance;
       self.postMessage({ type: "progress", message: "Privacy engine ready" });
       self.postMessage({ type: "init-done" });
-      console.log("[BurnChat Worker] GLiNER small model loaded");
+      console.log("[BurnChat Worker] GLiNER PII model loaded");
     } catch (err: any) {
       console.error("[BurnChat Worker] GLiNER init failed:", err);
       self.postMessage({ type: "init-error", error: err?.message || String(err) });
@@ -52,7 +51,7 @@ self.onmessage = async (e: MessageEvent) => {
       const results = await glinerInstance.inference({
         texts: [text],
         entities: ENTITY_LABELS,
-        threshold: 0.6,
+        threshold: 0.5,
         flatNer: true,
       });
       const entities = (results[0] || []).map((r: any) => ({
@@ -71,7 +70,7 @@ self.onmessage = async (e: MessageEvent) => {
       const results = await glinerInstance.inference({
         texts: texts,
         entities: ENTITY_LABELS,
-        threshold: 0.6,
+        threshold: 0.5,
         flatNer: true,
       });
       const batchEntities = results.map((chunkResults: any[]) =>
