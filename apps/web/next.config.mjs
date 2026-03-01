@@ -6,10 +6,8 @@ const nextConfig = {
   webpack: (config, { isServer }) => {
     config.resolve.alias.canvas = false;
     config.resolve.alias['onnxruntime-node'] = false;
-    config.resolve.alias['onnxruntime-web/webgl'] = false;
-    config.resolve.alias['onnxruntime-web/webgpu'] = false;
-    config.resolve.alias['onnxruntime-web/wasm'] = false;
-    config.externals = config.externals || [];
+    // @huggingface/transformers uses onnxruntime-web (WASM backend)
+    // Only block server-side native bindings
     if (!isServer) {
       config.resolve.fallback = {
         ...config.resolve.fallback,
