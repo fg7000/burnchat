@@ -244,6 +244,12 @@ function isLikelyRealEntity(e: DetectedEntity): boolean {
 }
 
 function catchNameFragments(text: string, mapping: MappingEntry[]): { text: string; extraCount: number } {
+  // SAFETY: Skip fragment matching on large text — this is the OOM crash source.
+  // For documents, the per-chunk processing already handles replacements.
+  // Fragment matching is only useful for short chat messages.
+  if (text.length > 50000) {
+    return { text, extraCount: 0 };
+  }
   let result = text;
   let extraCount = 0;
   const personMappings = mapping.filter((m) => m.entity_type === "PERSON");
@@ -438,14 +444,14 @@ export async function anonymizeDocument(
 
   onProgress?.(80, "Final sweep...");
 
-  // Safety: only do global sweep if document isn't huge (prevents Invalid string length)
+  // Safety: only do global sweep on small documents (prevents out-of-memory)
   try {
-    if (allAnonymized.length < 500000) {
+    if (allAnonymized.length < 100000) {
       allAnonymized = globalMappingSweep(allAnonymized, accumulatedMapping);
       const { text: swept } = catchNameFragments(allAnonymized, accumulatedMapping);
       allAnonymized = swept;
     } else {
-      console.warn("[BurnChat] Skipping global sweep — document too large:", allAnonymized.length);
+      console.log("[BurnChat] Skipping global sweep — document too large:", allAnonymized.length, "chars");
     }
   } catch (err) {
     console.warn("[BurnChat] Global sweep failed, using per-chunk results:", err);

@@ -1,7 +1,5 @@
 "use client";
 
-import nlp from "compromise";
-
 export type ProgressCallback = (message: string) => void;
 
 interface DetectedEntity {
@@ -12,40 +10,88 @@ interface DetectedEntity {
   score: number;
 }
 
-// ─── Compromise.js NLP (instant, no model download) ───
+// ─── Compromise.js NLP (loaded from CDN, avoids webpack bundling) ───
+
+let nlpFn: ((text: string) => any) | null = null;
+
+function loadCompromiseFromCDN(): Promise<void> {
+  return new Promise((resolve) => {
+    if (typeof window === "undefined") { resolve(); return; }
+    if (nlpFn) { resolve(); return; }
+    if ((window as any).nlp) {
+      nlpFn = (window as any).nlp;
+      resolve();
+      return;
+    }
+    const script = document.createElement("script");
+    script.src = "https://cdn.jsdelivr.net/npm/compromise@14.14.3/builds/compromise.min.js";
+    script.onload = () => {
+      nlpFn = (window as any).nlp || null;
+      if (nlpFn) console.log("[BurnChat] Compromise.js loaded from CDN");
+      else console.warn("[BurnChat] Compromise.js loaded but window.nlp not found");
+      resolve();
+    };
+    script.onerror = () => {
+      console.warn("[BurnChat] Failed to load Compromise.js from CDN");
+      resolve();
+    };
+    document.head.appendChild(script);
+  });
+}
 
 function detectWithCompromise(text: string): DetectedEntity[] {
-  const doc = nlp(text);
-  const entities: DetectedEntity[] = [];
-
-  // Person names
-  doc.people().forEach((m: any) => {
-    const t = m.text();
-    const offset = text.indexOf(t);
-    if (offset >= 0 && t.length >= 3) {
-      entities.push({ text: t, start: offset, end: offset + t.length, label: "person", score: 0.7 });
+  if (!nlpFn) return [];
+  if (text.length > 50000) {
+    const results: DetectedEntity[] = [];
+    let offset = 0;
+    while (offset < text.length) {
+      const chunk = text.slice(offset, offset + 50000);
+      const chunkEntities = detectWithCompromiseSafe(chunk);
+      for (const e of chunkEntities) {
+        results.push({ ...e, start: e.start + offset, end: e.end + offset });
+      }
+      offset += 50000;
     }
-  });
+    return results;
+  }
+  return detectWithCompromiseSafe(text);
+}
 
-  // Organizations
-  doc.organizations().forEach((m: any) => {
-    const t = m.text();
-    const offset = text.indexOf(t);
-    if (offset >= 0 && t.length >= 2) {
-      entities.push({ text: t, start: offset, end: offset + t.length, label: "organization", score: 0.65 });
-    }
-  });
+function detectWithCompromiseSafe(text: string): DetectedEntity[] {
+  if (!nlpFn) return [];
+  try {
+    const doc = nlpFn(text);
+    const entities: DetectedEntity[] = [];
 
-  // Places/locations
-  doc.places().forEach((m: any) => {
-    const t = m.text();
-    const offset = text.indexOf(t);
-    if (offset >= 0 && t.length >= 3) {
-      entities.push({ text: t, start: offset, end: offset + t.length, label: "location", score: 0.6 });
-    }
-  });
+    doc.people().forEach((m: any) => {
+      const t = m.text();
+      const offset = text.indexOf(t);
+      if (offset >= 0 && t.length >= 3) {
+        entities.push({ text: t, start: offset, end: offset + t.length, label: "person", score: 0.7 });
+      }
+    });
 
-  return entities;
+    doc.organizations().forEach((m: any) => {
+      const t = m.text();
+      const offset = text.indexOf(t);
+      if (offset >= 0 && t.length >= 2) {
+        entities.push({ text: t, start: offset, end: offset + t.length, label: "organization", score: 0.65 });
+      }
+    });
+
+    doc.places().forEach((m: any) => {
+      const t = m.text();
+      const offset = text.indexOf(t);
+      if (offset >= 0 && t.length >= 3) {
+        entities.push({ text: t, start: offset, end: offset + t.length, label: "location", score: 0.6 });
+      }
+    });
+
+    return entities;
+  } catch (err) {
+    console.warn("[BurnChat] Compromise.js failed on chunk:", err);
+    return [];
+  }
 }
 
 // ─── ML Worker (CDN-loaded, background) ───
@@ -58,8 +104,6 @@ let detectIdCounter = 0;
 
 const pendingDetects: Record<number, { resolve: (v: any) => void; reject: (err: Error) => void }> = {};
 let initProgressCallback: ProgressCallback | null = null;
-let initResolve: (() => void) | null = null;
-let initReject: ((err: Error) => void) | null = null;
 
 function handleWorkerMessage(e: MessageEvent) {
   const { type, id, entities, batchEntities, error, message } = e.data;
@@ -85,25 +129,19 @@ function handleWorkerMessage(e: MessageEvent) {
   }
 }
 
-/**
- * Initialize the PII detection engine.
- * Compromise.js is ready instantly (npm package, no download).
- * ML worker starts loading in background from CDN.
- */
 export async function initGliner(onProgress?: ProgressCallback): Promise<void> {
   if (compromiseReady) return;
   if (loadingPromise) return loadingPromise;
 
-  loadingPromise = new Promise<void>((resolve) => {
+  loadingPromise = new Promise<void>(async (resolve) => {
     initProgressCallback = onProgress || null;
 
-    // Compromise.js is ready immediately — it's just a JS import
+    // Load Compromise.js from CDN
+    await loadCompromiseFromCDN();
     compromiseReady = true;
     onProgress?.("Privacy engine active");
-    console.log("[BurnChat] Compromise.js NLP ready (instant)");
 
-    // Start ML worker in background (CDN-loaded, takes a few seconds)
-    // The worker lives in /public/ — completely outside webpack
+    // Start ML worker in background
     try {
       mlWorker = new Worker("/ner-worker.js", { type: "module" });
       mlWorker.onmessage = handleWorkerMessage;
@@ -112,72 +150,49 @@ export async function initGliner(onProgress?: ProgressCallback): Promise<void> {
       };
       mlWorker.postMessage({ type: "init" });
     } catch (err) {
-      console.warn("[BurnChat] Worker creation failed, using Compromise.js + regex only:", err);
+      console.warn("[BurnChat] Worker creation failed:", err);
     }
 
-    // Resolve immediately — Compromise.js is ready, ML is a bonus
     resolve();
   });
 
   return loadingPromise;
 }
 
-/**
- * Detect entities using all available layers:
- * 1. Compromise.js (instant, always available)
- * 2. ML model (if loaded — higher accuracy for names)
- */
 export async function detectEntities(text: string): Promise<DetectedEntity[]> {
   if (!compromiseReady) return [];
 
-  // Layer 1: Compromise.js (instant)
   const compromiseEntities = detectWithCompromise(text);
 
-  // Layer 2: ML model (if ready)
   if (mlReady && mlWorker) {
     const id = ++detectIdCounter;
     const mlEntities = await new Promise<DetectedEntity[]>((resolve) => {
       pendingDetects[id] = { resolve, reject: () => resolve([]) };
       mlWorker!.postMessage({ type: "detect", id, text });
       setTimeout(() => {
-        if (pendingDetects[id]) {
-          console.warn("[BurnChat] ML inference timed out");
-          delete pendingDetects[id];
-          resolve([]);
-        }
+        if (pendingDetects[id]) { delete pendingDetects[id]; resolve([]); }
       }, 60000);
     });
-
     return deduplicateEntities([...compromiseEntities, ...mlEntities]);
   }
 
   return compromiseEntities;
 }
 
-/**
- * Batch detection for documents.
- */
 export async function detectEntitiesBatch(texts: string[]): Promise<DetectedEntity[][]> {
   if (!compromiseReady) return texts.map(() => []);
 
-  // Layer 1: Compromise.js for all chunks (instant)
   const compromiseResults = texts.map((t) => detectWithCompromise(t));
 
-  // Layer 2: ML model batch (if ready)
   if (mlReady && mlWorker) {
     const id = ++detectIdCounter;
     const mlResults = await new Promise<DetectedEntity[][]>((resolve) => {
       pendingDetects[id] = { resolve, reject: () => resolve(texts.map(() => [])) };
       mlWorker!.postMessage({ type: "detect-batch", id, texts });
       setTimeout(() => {
-        if (pendingDetects[id]) {
-          console.warn("[BurnChat] Batch ML inference timed out");
-          delete pendingDetects[id];
-          resolve(texts.map(() => []));
-        }
+        if (pendingDetects[id]) { delete pendingDetects[id]; resolve(texts.map(() => [])); }
       }, 300000);
     });
-
     return texts.map((_, i) =>
       deduplicateEntities([...(compromiseResults[i] || []), ...(mlResults[i] || [])])
     );
@@ -186,15 +201,8 @@ export async function detectEntitiesBatch(texts: string[]): Promise<DetectedEnti
   return compromiseResults;
 }
 
-export function isGlinerReady(): boolean {
-  return compromiseReady;
-}
-
-export function isMLReady(): boolean {
-  return mlReady;
-}
-
-// ─── Helpers ───
+export function isGlinerReady(): boolean { return compromiseReady; }
+export function isMLReady(): boolean { return mlReady; }
 
 function deduplicateEntities(entities: DetectedEntity[]): DetectedEntity[] {
   const sorted = [...entities].sort((a, b) => a.start - b.start || b.score - a.score);
