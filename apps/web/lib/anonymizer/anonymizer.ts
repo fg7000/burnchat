@@ -16,13 +16,18 @@ const PII_REGEX: Array<{ pattern: RegExp; label: string }> = [
 // Contextual name patterns — these use capture groups, handled separately
 const CONTEXT_NAME_PATTERNS: Array<{ pattern: RegExp; nameGroup: number }> = [
   // "name is Faryar Ghazanfari", "lawyer Faryar Ghazanfari", "client John Smith"
-  { pattern: /(?:(?:my|our|the|his|her|their)\s+)?(?:name\s+is|lawyer|attorney|client|patient|doctor|defendant|plaintiff|tenant|landlord|employee|employer|manager|supervisor|agent|broker|accountant|therapist|counselor|advisor|consultant)\s+(?:is\s+)?(?:named?\s+)?([A-Z][a-zA-Z'-]+(?:\s+[A-Z][a-zA-Z'-]+){1,3})/gi, nameGroup: 1 },
+  // Also handles colon after keyword: "Patient: Brittany Brousseau"
+  { pattern: /(?:(?:my|our|the|his|her|their)\s+)?(?:name\s+is|lawyer|attorney|client|patient|doctor|defendant|plaintiff|tenant|landlord|employee|employer|manager|supervisor|agent|broker|accountant|therapist|counselor|advisor|consultant)[:\s]+(?:is\s+)?(?:named?\s+)?([A-Z][a-zA-Z'-]+(?:\s+[A-Z][a-zA-Z'-]+){1,3})/gi, nameGroup: 1 },
   // "I'm John Smith", "this is Jane Doe"
   { pattern: /(?:I'?m|I\s+am|this\s+is|that\s+is|meet)\s+([A-Z][a-zA-Z'-]+(?:\s+[A-Z][a-zA-Z'-]+){0,2})/g, nameGroup: 1 },
   // "Dear Mr. Ghazanfari" or "Dear Faryar"
   { pattern: /\bDear\s+(?:Mr|Mrs|Ms|Miss|Dr|Prof)?\.?\s*([A-Z][a-zA-Z'-]+(?:\s+[A-Z][a-zA-Z'-]+){0,2})/g, nameGroup: 1 },
   // "signed by John Smith"
   { pattern: /(?:signed|prepared|reviewed|drafted|authored|submitted|filed|represented)\s+by\s+([A-Z][a-zA-Z'-]+(?:\s+[A-Z][a-zA-Z'-]+){1,3})/gi, nameGroup: 1 },
+  // Document headers: "Attn: Name", "From: Name", "To: Name", "Cc: Name"
+  { pattern: /(?:Attn|From|To|Cc|Bcc|RE|Attention|Contact|Witness|Claimant|Respondent|Petitioner|Appellant|Assignee|Beneficiary|Guarantor|Insured|Applicant|Complainant|Decedent|Executor|Guardian|Trustee|Sender|Recipient)[:\s]+([A-Z][a-zA-Z'-]+(?:\s+[A-Z][a-zA-Z'-]+){1,3})/g, nameGroup: 1 },
+  // ALL CAPS names (2+ words, each 3+ chars) — common in legal document headings/signatures
+  { pattern: /\b([A-Z]{3,}(?:\s+[A-Z]{3,}){1,3})\b/g, nameGroup: 1 },
 ];
 
 // ─── Smart Address Detection + Jurisdiction Preservation ───
@@ -285,8 +290,9 @@ function processChunk(
   text: string,
   existingMapping: MappingEntry[],
   nerEntities: DetectedEntity[],
+  contextOverride?: ContextType,
 ): { anonymizedText: string; mapping: MappingEntry[]; entitiesFound: number } {
-  const detectedContext = detectContext(text);
+  const detectedContext = contextOverride || detectContext(text);
   const allEntities: DetectedEntity[] = [];
 
   // Layer 1: Regex patterns (instant, structured PII)
@@ -299,12 +305,31 @@ function processChunk(
   }
 
   // Layer 1b: Contextual name patterns (uses capture groups to extract name only)
+  const ALL_CAPS_EXCLUDE = new Set([
+    "URGENT", "DEMAND", "NOTICE", "ATTENTION", "IMPORTANT", "CONFIDENTIAL",
+    "PRIVILEGED", "FINAL", "DRAFT", "SUBJECT", "OFFICE", "DEPARTMENT",
+    "SERVICES", "HEALTH", "PUBLIC", "BEHAVIORAL", "MEDICAL", "COURT",
+    "STATE", "COUNTY", "CITY", "DISTRICT", "FEDERAL", "SUPERIOR",
+    "IMMEDIATE", "INITIATION", "INVOLUNTARY", "COMMITMENT", "PROCEEDINGS",
+    "BRIDGE", "ENGAGEMENT", "COORDINATED", "CARE", "VIA", "EMAIL",
+    "STREET", "AVENUE", "BOULEVARD", "DRIVE", "ROAD", "LANE",
+    "THE", "AND", "FOR", "NOT", "BUT", "WITH", "FROM", "THIS", "THAT",
+  ]);
+
   for (const { pattern, nameGroup } of CONTEXT_NAME_PATTERNS) {
     const regex = new RegExp(pattern.source, pattern.flags);
     let match;
     while ((match = regex.exec(text)) !== null) {
       const name = match[nameGroup];
-      if (name && name.length >= 3) {
+      if (name && name.length >= 4) {
+        // For ALL CAPS matches, filter out common document phrases
+        if (name === name.toUpperCase()) {
+          const words = name.split(/\s+/);
+          const allExcluded = words.every((w) => ALL_CAPS_EXCLUDE.has(w));
+          if (allExcluded) continue; // Skip "URGENT DEMAND", "PUBLIC HEALTH", etc.
+          // Must be exactly 2-3 words (likely a name, not a phrase)
+          if (words.length > 3) continue;
+        }
         const nameStart = match.index + match[0].indexOf(name);
         allEntities.push({ text: name, start: nameStart, end: nameStart + name.length, label: "person" });
       }
@@ -423,6 +448,11 @@ export async function anonymizeDocument(
   const CHUNK_SIZE = 4000;
   const chunks = splitTextIntoChunks(text, CHUNK_SIZE);
 
+  // Detect context ONCE from document (using first 20K chars for speed)
+  // This ensures legal/medical/financial context applies to ALL chunks
+  const documentContext = detectContext(text.slice(0, 20000));
+  console.log(`[BurnChat] Document context: ${documentContext}`);
+
   onProgress?.(10, "Detecting PII across document...");
 
   // Batch ALL chunks through Compromise.js + ML (if ready)
@@ -447,7 +477,7 @@ export async function anonymizeDocument(
 
   for (let i = 0; i < chunks.length; i++) {
     try {
-      const result = processChunk(chunks[i], accumulatedMapping, batchResults[i] || []);
+      const result = processChunk(chunks[i], accumulatedMapping, batchResults[i] || [], documentContext);
       allAnonymized += result.anonymizedText;
       accumulatedMapping = result.mapping;
     } catch (chunkErr) {
@@ -458,18 +488,9 @@ export async function anonymizeDocument(
 
   onProgress?.(80, "Final sweep...");
 
-  // Safety: only do global sweep on small documents (prevents out-of-memory)
-  try {
-    if (allAnonymized.length < 100000) {
-      allAnonymized = globalMappingSweep(allAnonymized, accumulatedMapping);
-      const { text: swept } = catchNameFragments(allAnonymized, accumulatedMapping);
-      allAnonymized = swept;
-    } else {
-      console.log("[BurnChat] Skipping global sweep — document too large:", allAnonymized.length, "chars");
-    }
-  } catch (err) {
-    console.warn("[BurnChat] Global sweep failed, using per-chunk results:", err);
-  }
+  // Global sweep disabled for documents — per-chunk processing handles replacements.
+  // The sweep was cascading RangeError: Invalid string length on accumulated mappings.
+  // For chat messages (anonymizeText), fragment matching still runs via processChunk.
 
   onProgress?.(100, "Anonymization complete");
 
