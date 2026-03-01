@@ -77,66 +77,10 @@ function AudioBars({ analyser }: { analyser: AnalyserNode | null }) {
   );
 }
 
-const LOADING_MESSAGES = [
-  "Deploying on-device privacy model\u2026",
-  "Building local encryption layer\u2026",
-  "No data leaves your browser\u2026",
-  "Initializing PII scanner\u2026",
-  "Preparing entity recognition\u2026",
-  "Configuring zero-trust pipeline\u2026",
-  "Almost there\u2026",
-];
-
 export default function ChatInput() {
   const [text, setText] = useState("");
   const [privacyEnabled, setPrivacyEnabled] = useState(true);
   const [modelReady, setModelReady] = useState(false);
-  const [loadingStage, setLoadingStage] = useState("");
-  const [fakeProgress, setFakeProgress] = useState(0);
-  const [statusMsg, setStatusMsg] = useState("");
-  const [msgIndex, setMsgIndex] = useState(0);
-
-  // Smooth fake progress that asymptotically approaches 95%
-  useEffect(() => {
-    if (!privacyEnabled || modelReady) {
-      setFakeProgress(modelReady ? 100 : 0);
-      return;
-    }
-    setFakeProgress(5);
-    const interval = setInterval(() => {
-      setFakeProgress((prev) => {
-        if (prev >= 94) return 94;
-        // Slow down as we approach 95 — fast at start, crawls near end
-        const remaining = 94 - prev;
-        const increment = Math.max(0.3, remaining * 0.04);
-        return Math.min(94, prev + increment);
-      });
-    }, 400);
-    return () => clearInterval(interval);
-  }, [privacyEnabled, modelReady]);
-
-  // Snap to 100 when ready
-  useEffect(() => {
-    if (modelReady) setFakeProgress(100);
-  }, [modelReady]);
-
-  // Rotate status messages every 4 seconds during loading
-  useEffect(() => {
-    if (!privacyEnabled || modelReady) {
-      setStatusMsg(modelReady ? "Privacy Shield active \u2014 on-device" : "Privacy Shield off");
-      return;
-    }
-    setStatusMsg(LOADING_MESSAGES[0]);
-    setMsgIndex(0);
-    const interval = setInterval(() => {
-      setMsgIndex((prev) => {
-        const next = (prev + 1) % LOADING_MESSAGES.length;
-        setStatusMsg(LOADING_MESSAGES[next]);
-        return next;
-      });
-    }, 4000);
-    return () => clearInterval(interval);
-  }, [privacyEnabled, modelReady]);
   const [lastDiff, setLastDiff] = useState<{
     original: string;
     anonymized: string;
@@ -571,7 +515,7 @@ export default function ChatInput() {
         ) : (
           hasDocument && (
             <div className="text-xs mb-2 text-center" style={{ color: "rgba(255,255,255,0.2)", fontFamily: "'JetBrains Mono', monospace" }}>
-              Credit balance: {Number.isFinite(creditBalance) ? creditBalance : 0}
+              Credit balance: {creditBalance}
             </div>
           )
         )}
@@ -592,36 +536,10 @@ export default function ChatInput() {
           {/* Textarea */}
           <div className="flex-1 relative">
             <div className="flex items-center gap-2 mb-2" style={{ paddingLeft: "4px" }}>
-            <PrivacyShield enabled={privacyEnabled} onToggle={setPrivacyEnabled} onLoadingStage={setLoadingStage} />
-            <div style={{ display: "flex", alignItems: "center", gap: "8px", minHeight: "16px" }}>
-              <span style={{
-                fontSize: "11px",
-                color: privacyEnabled ? "rgba(255, 107, 53, 0.6)" : "rgba(255,255,255,0.2)",
-                fontFamily: "monospace",
-                letterSpacing: "0.02em",
-                transition: "opacity 0.5s ease",
-              }}>
-                {statusMsg}
-              </span>
-              {privacyEnabled && !modelReady && (
-                <div style={{
-                  width: "60px",
-                  height: "3px",
-                  borderRadius: "2px",
-                  background: "rgba(255, 255, 255, 0.06)",
-                  overflow: "hidden",
-                  flexShrink: 0,
-                }}>
-                  <div style={{
-                    width: `${fakeProgress}%`,
-                    height: "100%",
-                    borderRadius: "2px",
-                    background: "#ff6b35",
-                    transition: "width 0.4s ease-out",
-                  }} />
-                </div>
-              )}
-            </div>
+            <PrivacyShield enabled={privacyEnabled} onToggle={setPrivacyEnabled} />
+            <span style={{ fontSize: "11px", color: privacyEnabled ? "rgba(255, 107, 53, 0.6)" : "rgba(255,255,255,0.2)" }}>
+              {privacyEnabled ? (modelReady ? "Privacy Shield active" : "Privacy Shield (loading model…)") : "Privacy Shield off"}
+            </span>
           </div>
           <textarea
               ref={textareaRef}
