@@ -280,16 +280,25 @@ export default function ChatInput() {
 
     if (privacyEnabled) {
       try {
+        const prevMappingCount = currentMapping.length;
         const anonResult = await anonymizeText(trimmed, currentMapping);
         textForApi = anonResult.anonymizedText;
         activeMapping = anonResult.mapping;
         setCurrentMapping(activeMapping);
 
         if (anonResult.entitiesFound > 0) {
+          // Only show NEW mappings relevant to this message, not cumulative PDF mappings
+          const messageMappings = activeMapping.filter((m) => {
+            const inPrevious = currentMapping.some(
+              (p) => p.original === m.original && p.replacement === m.replacement
+            );
+            // Keep if it's new OR if its original text appears in this message
+            return !inPrevious || trimmed.includes(m.original);
+          });
           setLastDiff({
             original: trimmed,
             anonymized: textForApi,
-            mapping: activeMapping,
+            mapping: messageMappings.length > 0 ? messageMappings : activeMapping.filter((m) => trimmed.includes(m.original)),
             context: anonResult.detectedContext,
           });
         }

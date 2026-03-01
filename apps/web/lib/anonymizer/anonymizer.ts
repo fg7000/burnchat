@@ -238,7 +238,7 @@ function deduplicateSpans(spans: DetectedEntity[]): DetectedEntity[] {
 }
 
 function isLikelyRealEntity(e: DetectedEntity): boolean {
-  if (e.text.length <= 2) return false;
+  if (e.text.length <= 3) return false;
   if (e.score !== undefined && e.score < 0.4) return false;
   return true;
 }
@@ -254,7 +254,7 @@ function catchNameFragments(text: string, mapping: MappingEntry[]): { text: stri
   let extraCount = 0;
   const personMappings = mapping.filter((m) => m.entity_type === "PERSON");
   for (const m of personMappings) {
-    const origWords = m.original.split(/\s+/).filter((w) => w.length >= 3);
+    const origWords = m.original.split(/\s+/).filter((w) => w.length >= 5);
     const replWords = m.replacement.split(/\s+/);
     for (let i = 0; i < origWords.length; i++) {
       const escaped = origWords[i].replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
