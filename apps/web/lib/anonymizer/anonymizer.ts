@@ -369,12 +369,26 @@ function processChunk(
     }
   }
 
-  const { text: finalResult, extraCount } = catchNameFragments(result, newMapping);
+  // Only run fragment matching for short text with small mapping (chat messages).
+  // For documents, per-chunk entity detection is sufficient — fragment matching
+  // on accumulated mappings causes cascading RangeError: Invalid string length.
+  if (newMapping.length <= 15 && result.length < 10000) {
+    try {
+      const { text: fragmentResult, extraCount } = catchNameFragments(result, newMapping);
+      return {
+        anonymizedText: fragmentResult,
+        mapping: newMapping,
+        entitiesFound: contextFiltered.length + extraCount,
+      };
+    } catch {
+      // Fragment matching failed, return without it
+    }
+  }
 
   return {
-    anonymizedText: finalResult,
+    anonymizedText: result,
     mapping: newMapping,
-    entitiesFound: contextFiltered.length + extraCount,
+    entitiesFound: contextFiltered.length,
   };
 }
 

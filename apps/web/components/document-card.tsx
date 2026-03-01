@@ -253,7 +253,9 @@ export function DocumentCard({ document }: DocumentCardProps) {
                     fontFamily: "'JetBrains Mono', monospace",
                   }}
                 >
-                  {document.anonymizedText}
+                  {document.anonymizedText.length > 10000
+                    ? document.anonymizedText.slice(0, 10000) + "\n\n... [truncated — " + Math.round(document.anonymizedText.length / 1000) + "K chars total]"
+                    : document.anonymizedText}
                 </div>
               )}
             </div>
