@@ -5,9 +5,6 @@ const nextConfig = {
   eslint: { ignoreDuringBuilds: true },
   webpack: (config, { isServer }) => {
     config.resolve.alias.canvas = false;
-    config.resolve.alias['onnxruntime-node'] = false;
-    // @huggingface/transformers uses onnxruntime-web (WASM backend)
-    // Only block server-side native bindings
     if (!isServer) {
       config.resolve.fallback = {
         ...config.resolve.fallback,

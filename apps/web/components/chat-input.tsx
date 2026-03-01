@@ -81,12 +81,16 @@ export default function ChatInput() {
   const [text, setText] = useState("");
   const [privacyEnabled, setPrivacyEnabled] = useState(true);
   const [modelReady, setModelReady] = useState(false);
+  const [loadingStage, setLoadingStage] = useState("");
   const [lastDiff, setLastDiff] = useState<{
     original: string;
     anonymized: string;
     mapping: import("@/store/session-store").MappingEntry[];
     context?: string;
   } | null>(null);
+  const lastDiffRef = useRef(lastDiff);
+  // Keep ref in sync with state
+  lastDiffRef.current = lastDiff;
   const pendingMessageRef = useRef<string | null>(null);
 
   // Poll for model readiness (checks every 500ms until ready)
@@ -107,12 +111,7 @@ export default function ChatInput() {
     const interval = setInterval(check, 500);
     return () => clearInterval(interval);
   }, [modelReady]);
-  // Auto-clear diff banner after 8 seconds
-  useEffect(() => {
-    if (!lastDiff) return;
-    const timer = setTimeout(() => setLastDiff(null), 8000);
-    return () => clearTimeout(timer);
-  }, [lastDiff]);
+  // Diff persists until the next message is sent (cleared in doSend)
 
   const [isRecording, setIsRecording] = useState(false);
   const [analyserNode, setAnalyserNode] = useState<AnalyserNode | null>(null);
@@ -293,14 +292,14 @@ export default function ChatInput() {
             mapping: activeMapping,
             context: anonResult.detectedContext,
           });
-        } else {
-          setLastDiff(null);
         }
+        // If no entities found, keep the previous diff visible (don't clear)
       } catch (err) {
         console.warn("Anonymization failed, sending raw:", err);
-        setLastDiff(null);
+        // Keep previous diff visible on error (don't clear)
       }
     } else {
+      // Privacy off — clear any existing diff
       setLastDiff(null);
     }
 
@@ -515,7 +514,7 @@ export default function ChatInput() {
         ) : (
           hasDocument && (
             <div className="text-xs mb-2 text-center" style={{ color: "rgba(255,255,255,0.2)", fontFamily: "'JetBrains Mono', monospace" }}>
-              Credit balance: {creditBalance}
+              Credit balance: {Number.isFinite(creditBalance) ? creditBalance : 0}
             </div>
           )
         )}
@@ -536,10 +535,37 @@ export default function ChatInput() {
           {/* Textarea */}
           <div className="flex-1 relative">
             <div className="flex items-center gap-2 mb-2" style={{ paddingLeft: "4px" }}>
-            <PrivacyShield enabled={privacyEnabled} onToggle={setPrivacyEnabled} />
-            <span style={{ fontSize: "11px", color: privacyEnabled ? "rgba(255, 107, 53, 0.6)" : "rgba(255,255,255,0.2)" }}>
-              {privacyEnabled ? (modelReady ? "Privacy Shield active" : "Privacy Shield (loading model…)") : "Privacy Shield off"}
-            </span>
+            <PrivacyShield enabled={privacyEnabled} onToggle={setPrivacyEnabled} onLoadingStage={setLoadingStage} />
+            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <span style={{ fontSize: "11px", color: privacyEnabled ? "rgba(255, 107, 53, 0.6)" : "rgba(255,255,255,0.2)" }}>
+                {privacyEnabled
+                  ? modelReady
+                    ? "Privacy Shield active"
+                    : loadingStage.includes("Downloading")
+                    ? "Downloading model"
+                    : loadingStage.includes("Initializing")
+                    ? "Initializing engine"
+                    : "Loading model"
+                  : "Privacy Shield off"}
+              </span>
+              {privacyEnabled && !modelReady && (
+                <div style={{
+                  width: "60px",
+                  height: "3px",
+                  borderRadius: "2px",
+                  background: "rgba(255, 255, 255, 0.06)",
+                  overflow: "hidden",
+                }}>
+                  <div style={{
+                    width: loadingStage.includes("Initializing") ? "75%" : "35%",
+                    height: "100%",
+                    borderRadius: "2px",
+                    background: "#ff6b35",
+                    transition: "width 1.5s ease",
+                  }} />
+                </div>
+              )}
+            </div>
           </div>
           <textarea
               ref={textareaRef}
